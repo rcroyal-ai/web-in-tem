@@ -3,195 +3,185 @@
 <head>
   <meta charset="UTF-8">
   <title>Nhập đơn</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <style>
     * { box-sizing: border-box; }
     body {
-      font-family: Arial, sans-serif;
-      padding: 8px;
-      max-width: 100%;
-      margin: 0 auto;
-      background: #f9f9f9;
+      font-family: Arial;
+      padding: 10px;
+      margin: 0;
+      background: #f5f5f5;
     }
-    h2 { text-align: center; margin: 10px 0 12px 0; font-size: 18px; }
-    
-    .row { display: flex; gap: 5px; margin-bottom: 8px; align-items: center; }
-    .code-input { flex: 1; padding: 10px; font-size: 15px; border: 1px solid #ccc; border-radius: 6px; }
-    .qty-input { width: 68px; padding: 10px; font-size: 15px; text-align: center; border: 1px solid #ccc; border-radius: 6px; }
-    .scan-btn { width: 48px; height: 48px; font-size: 20px; background: #4CAF50; color: white; border: none; border-radius: 8px; }
 
-    button { width: 100%; padding: 12px; font-size: 16px; margin-top: 8px; border-radius: 6px; }
+    h2 { text-align: center; }
 
-    #open-safari {
-      position: fixed;
-      top: 8px;
-      left: 8px;
-      right: 8px;
-      background: #007AFF;
+    .row {
+      display: flex;
+      gap: 5px;
+      margin-bottom: 10px;
+    }
+
+    input {
+      padding: 10px;
+      font-size: 16px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+
+    .code-input { flex: 1; }
+    .qty-input { width: 70px; text-align: center; }
+
+    .scan-btn {
+      width: 50px;
+      background: green;
       color: white;
+      border: none;
+      border-radius: 6px;
+    }
+
+    button {
+      width: 100%;
       padding: 12px;
-      text-align: center;
-      border-radius: 8px;
-      font-weight: bold;
-      z-index: 9999;
-      display: none;
+      margin-top: 10px;
+      border-radius: 6px;
+      border: none;
+      font-size: 16px;
     }
 
     #scanner-container {
       width: 100%;
-      max-width: 280px;
-      height: 220px;
-      margin: 12px auto;
-      display: none;
-      border: 3px solid #4CAF50;
-      border-radius: 12px;
+      height: 260px;
+      margin-top: 10px;
+      border-radius: 10px;
       overflow: hidden;
-      background: #000;
+      display: none;
+      background: black;
     }
 
-    #status { text-align: center; margin: 10px 0; font-weight: bold; color: #d32f2f; }
+    #status {
+      text-align: center;
+      margin-top: 10px;
+      font-weight: bold;
+      color: green;
+    }
+
+    #close-camera {
+      background: red;
+      color: white;
+    }
   </style>
 </head>
+
 <body>
-  <div id="open-safari" onclick="openInSafari()">
-    🔄 Mở bằng Safari để quét camera tốt hơn
-  </div>
 
-  <h2>Nhập mã hàng</h2>
+<h2>Nhập mã hàng</h2>
 
-  <div id="list"></div>
+<div id="list"></div>
 
-  <button onclick="addRow()">+ Thêm dòng</button>
-  <button onclick="submitData()">🚀 Gửi đơn hàng</button>
+<button onclick="addRow()">+ Thêm dòng</button>
+<button onclick="submitData()">🚀 Gửi đơn hàng</button>
 
-  <div id="status"></div>
-  <div id="scanner-container"></div>
-  <button id="close-camera" onclick="stopScan()" style="display:none; width:280px; margin:8px auto; background:#f44336; color:white; padding:10px; border:none; border-radius:8px;">✕ Đóng Camera</button>
+<div id="status"></div>
 
-  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<div id="scanner-container"></div>
+<button id="close-camera" onclick="stopScan()" style="display:none">✕ Đóng Camera</button>
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
-    import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+<script src="https://unpkg.com/html5-qrcode"></script>
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyBA9z_fWdU2fOGQazkmMsxhrw_ZWkz49JY",
-      authDomain: "in-barcode.firebaseapp.com",
-      projectId: "in-barcode",
-      storageBucket: "in-barcode.firebasestorage.app",
-      messagingSenderId: "843997057895",
-      appId: "1:843997057895:web:68d856ce7b4050c13895c2"
-    };
+<script>
+let html5QrCode;
+let currentInput;
+let isScanning = false;
 
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
+function addRow() {
+  const div = document.createElement("div");
+  div.className = "row";
+  div.innerHTML = `
+    <input class="code-input" placeholder="Mã hàng">
+    <input class="qty-input" type="number" value="1">
+    <button class="scan-btn">📷</button>
+  `;
 
-    let html5QrCode = null;
-    let currentInput = null;
-    let isScanning = false;
+  div.querySelector(".scan-btn").onclick = () => {
+    startScan(div.querySelector(".code-input"));
+  };
 
-    function addRow() {
-      const div = document.createElement("div");
-      div.className = "row";
-      div.innerHTML = `
-        <input type="text" placeholder="Mã hàng" class="code-input">
-        <input type="number" placeholder="SL" class="qty-input" value="1" min="1">
-        <button class="scan-btn" type="button">📷</button>
-      `;
+  document.getElementById("list").appendChild(div);
+}
 
-      div.querySelector(".scan-btn").onclick = () => startScan(div.querySelector(".code-input"));
-      document.getElementById("list").appendChild(div);
-    }
+addRow();
 
-    window.addRow = addRow;
+async function startScan(input) {
+  if (isScanning) return;
 
-    function openInSafari() {
-      alert("✅ Long press vào thanh địa chỉ phía trên và chọn 'Mở trong Safari'\nHoặc copy link này dán vào Safari");
-    }
+  isScanning = true;
+  currentInput = input;
 
-    async function startScan(input) {
-      if (isScanning) return;
-      isScanning = true;
-      currentInput = input;
+  const container = document.getElementById("scanner-container");
+  const status = document.getElementById("status");
+  const closeBtn = document.getElementById("close-camera");
 
-      const container = document.getElementById("scanner-container");
-      const status = document.getElementById("status");
-      const closeBtn = document.getElementById("close-camera");
+  container.style.display = "block";
+  closeBtn.style.display = "block";
+  status.innerText = "Đang mở camera...";
 
-      container.style.display = "block";
-      closeBtn.style.display = "block";
-      status.textContent = "Đang mở camera...";
+  html5QrCode = new Html5Qrcode("scanner-container");
 
-      if (html5QrCode) await stopScan();
+  try {
+    await html5QrCode.start(
+      { facingMode: "environment" },
+      {
+        fps: 30,
+        aspectRatio: 1.777,
+        disableFlip: false,
+        formatsToSupport: [
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.QR_CODE
+        ]
+      },
+      (decodedText) => {
+        // Lọc mã 893 (EAN-13)
+        let match = decodedText.match(/\b893\d{10}\b/);
+        let code = match ? match[0] : decodedText;
 
-      html5QrCode = new Html5Qrcode("scanner-container");
+        currentInput.value = code;
+        status.innerText = "✅ Quét: " + code;
 
-      try {
-        await html5QrCode.start(
-          { facingMode: "environment" },
-          { fps: 15, qrbox: { width: 250, height: 160 }, aspectRatio: 1.0 },
-          (decodedText) => {
-            const match = decodedText.match(/893\d{10}/);
-            const code = match ? match[0] : decodedText;
-            currentInput.value = code;
-            status.textContent = `✅ Quét: ${code}`;
-            setTimeout(() => { stopScan(); addRow(); }, 700);
-          }
-        );
-        status.textContent = "✅ Hướng mã vạch vào khung";
-      } catch (err) {
-        status.textContent = "❌ Không mở được camera";
-        isScanning = false;
+        setTimeout(() => {
+          stopScan();
+          addRow();
+        }, 500);
       }
-    }
+    );
 
-    async function stopScan() {
-      if (html5QrCode) {
-        try { await html5QrCode.stop(); html5QrCode.clear(); } catch(e){}
-        html5QrCode = null;
-      }
-      document.getElementById("scanner-container").style.display = "none";
-      document.getElementById("close-camera").style.display = "none";
-      document.getElementById("status").textContent = "";
-      isScanning = false;
-    }
+    status.innerText = "✅ Đưa mã vào camera";
+  } catch (err) {
+    status.innerText = "❌ Không mở được camera";
+    isScanning = false;
+  }
+}
 
-    window.submitData = async function() {
-      const rows = document.querySelectorAll(".row");
-      let items = [];
-      rows.forEach(r => {
-        const code = r.querySelector(".code-input").value.trim();
-        if (code) {
-          items.push({
-            code: code,
-            qty: r.querySelector(".qty-input").value || "1"
-          });
-        }
-      });
+async function stopScan() {
+  if (html5QrCode) {
+    try {
+      await html5QrCode.stop();
+      await html5QrCode.clear();
+    } catch (e) {}
+  }
 
-      if (items.length === 0) return alert("Chưa nhập dữ liệu");
+  document.getElementById("scanner-container").style.display = "none";
+  document.getElementById("close-camera").style.display = "none";
+  document.getElementById("status").innerText = "";
 
-      try {
-        await addDoc(collection(db, "orders"), {
-          items,
-          time: serverTimestamp(),
-          status: "pending"
-        });
-        alert("✅ Đã gửi thành công!");
-        location.reload();
-      } catch (e) {
-        alert("Lỗi: " + e.message);
-      }
-    };
+  isScanning = false;
+}
 
-    // Khởi tạo
-    addRow();
-    // Kiểm tra Zalo
-    if (navigator.userAgent.includes("Zalo")) {
-      document.getElementById("open-safari").style.display = "block";
-    }
-  </script>
+async function submitData() {
+  alert("Demo gửi dữ liệu (bạn giữ nguyên Firebase cũ)");
+}
+</script>
+
 </body>
 </html>
