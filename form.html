@@ -6,67 +6,65 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 
   <style>
+    * { box-sizing: border-box; }
     body {
       font-family: Arial, sans-serif;
-      padding: 10px;
-      max-width: 460px;
-      margin: auto;
+      padding: 8px;
+      max-width: 100%;
+      margin: 0 auto;
       background: #f9f9f9;
     }
     h2 { 
       text-align: center; 
       margin: 8px 0 12px 0;
-      font-size: 19px;
+      font-size: 18px;
     }
     
     .row {
       display: flex;
-      gap: 5px;
+      gap: 4px;
       margin-bottom: 8px;
       align-items: center;
     }
     .code-input {
-      flex: 2;
-      padding: 10px;
+      flex: 1;
+      padding: 9px 8px;
       font-size: 15px;
       border: 1px solid #ccc;
       border-radius: 6px;
     }
     .qty-input {
-      flex: 0.8;           /* Thu nhỏ ô số lượng */
-      padding: 10px;
+      width: 65px;           /* Rất nhỏ */
+      padding: 9px 6px;
       font-size: 15px;
       text-align: center;
       border: 1px solid #ccc;
       border-radius: 6px;
     }
     .scan-btn {
-      width: 48px;
-      height: 48px;
-      font-size: 20px;
+      width: 44px;
+      height: 44px;
+      font-size: 18px;
       background: #4CAF50;
       color: white;
       border: none;
       border-radius: 8px;
-      padding: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      flex-shrink: 0;
     }
 
     button {
       width: 100%;
-      padding: 12px;
-      font-size: 16px;
-      margin-top: 10px;
+      padding: 11px;
+      font-size: 15.5px;
+      margin-top: 6px;
       border-radius: 6px;
     }
 
-    /* Khung Camera */
+    /* Camera */
     #scanner-container {
-      width: 240px;
-      height: 180px;
-      margin: 12px auto;
+      width: 220px;
+      height: 165px;
+      margin: 10px auto;
       display: none;
       border: 3px solid #4CAF50;
       border-radius: 10px;
@@ -76,21 +74,22 @@
 
     #status {
       text-align: center;
-      margin: 8px 0;
-      font-weight: bold;
+      margin: 6px 0;
       font-size: 14px;
+      font-weight: bold;
       min-height: 20px;
     }
 
     #close-camera {
       display: none;
-      width: 240px;
-      margin: 8px auto;
+      width: 220px;
+      margin: 6px auto;
       padding: 8px;
       background: #f44336;
       color: white;
       border: none;
       border-radius: 6px;
+      font-size: 14px;
     }
   </style>
 </head>
@@ -156,17 +155,13 @@
       closeBtn.style.display = "block";
 
       Quagga.init({
-        inputStream: {
-          type: "LiveStream",
-          target: container,
-          constraints: { facingMode: "environment" }
-        },
+        inputStream: { type: "LiveStream", target: container, constraints: { facingMode: "environment" } },
         decoder: { readers: ["ean_reader", "code_128_reader"] },
         locate: true,
         numOfWorkers: 4
       }, function(err) {
         if (err) {
-          status.textContent = "❌ Không mở được camera";
+          status.textContent = "❌ Không mở camera";
           setTimeout(stopScan, 1500);
           return;
         }
@@ -181,7 +176,6 @@
       const raw = data.codeResult.code;
       const match = raw.match(/893\d{10}/);
       currentInput.value = match ? match[0] : raw;
-
       document.getElementById("status").textContent = "✅ Quét thành công!";
       setTimeout(stopScan, 700);
     }
@@ -189,7 +183,6 @@
     function stopScan() {
       Quagga.stop();
       Quagga.offDetected(handleDetection);
-
       document.getElementById("scanner-container").style.display = "none";
       document.getElementById("close-camera").style.display = "none";
       document.getElementById("status").textContent = "";
@@ -199,25 +192,21 @@
     window.submitData = async function() {
       const rows = document.querySelectorAll(".row");
       let items = [];
-
       rows.forEach(r => {
-        const codeInput = r.querySelector(".code-input");
-        const qtyInput = r.querySelector(".qty-input");
-        const code = codeInput.value.trim();
+        const code = r.querySelector(".code-input").value.trim();
         if (code) {
-          items.push({ code, qty: qtyInput.value || "1" });
+          items.push({
+            code: code,
+            qty: r.querySelector(".qty-input").value || "1"
+          });
         }
       });
 
       if (items.length === 0) return alert("Chưa nhập dữ liệu");
-
+      
       try {
-        await addDoc(collection(db, "orders"), {
-          items,
-          time: serverTimestamp(),
-          status: "pending"
-        });
-        alert("✅ Đã gửi thành công!");
+        await addDoc(collection(db, "orders"), { items, time: serverTimestamp(), status: "pending" });
+        alert("✅ Đã gửi!");
         location.reload();
       } catch (e) {
         alert("Lỗi: " + e.message);
