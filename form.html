@@ -9,7 +9,7 @@
     body {
       font-family: Arial;
       padding: 15px;
-      max-width: 350px; /* Giảm chiều rộng giao diện để phù hợp với điện thoại */
+      width: 320px; /* Giảm chiều rộng giao diện */
       margin: auto;
     }
 
@@ -45,25 +45,41 @@
     }
 
     #video {
-      width: 200px; /* Giảm kích thước camera xuống 200x200px */
+      width: 100%;
+      max-width: 200px; /* Đảm bảo camera không tràn ra ngoài */
       height: 200px;
       margin-top: 10px;
       display: none;
       margin-left: auto;
       margin-right: auto;
     }
+
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* Đảm bảo phần footer không bị tràn */
+    .footer {
+      margin-top: 10px;
+      text-align: center;
+    }
+
   </style>
 </head>
 
 <body>
   <h2>Nhập mã hàng</h2>
 
-  <div id="list"></div>
+  <div class="container">
+    <div id="list"></div>
 
-  <button onclick="addRow()">+ Thêm dòng</button>
-  <button onclick="submitData()">Gửi</button>
+    <button onclick="addRow()">+ Thêm dòng</button>
+    <button onclick="submitData()">Gửi</button>
 
-  <div id="video"></div>
+    <div id="video"></div>
+  </div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
