@@ -2,175 +2,143 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Nhập đơn</title>
+  <title>Nhập đơn hàng</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
   <style>
-    body {
-      font-family: Arial;
-      padding: 15px;
-      max-width: 500px;
-      margin: auto;
-    }
-
-    h2 {
-      text-align: center;
-    }
-
-    .row {
-      display: flex;
-      gap: 5px;
-      margin-bottom: 10px;
-    }
-
-    input {
-      flex: 1;
-      padding: 10px;
-      font-size: 16px;
-    }
-
-    button {
-      width: 100%;
-      padding: 12px;
-      font-size: 16px;
-      margin-top: 10px;
-    }
-
-    .scan-btn {
-      width: 70px;
-    }
-
-    #video {
-      width: 100%;
-      margin-top: 10px;
-    }
+    body { font-family: Arial; padding: 15px; max-width: 500px; margin: auto; }
+    h2 { text-align: center; }
+    .row { display: flex; gap: 8px; margin-bottom: 12px; align-items: center; }
+    input { flex: 1; padding: 12px; font-size: 16px; }
+    .scan-btn { width: 60px; font-size: 20px; }
+    button { padding: 12px; font-size: 16px; margin-top: 10px; width: 100%; }
+    #video { width: 100%; margin: 10px 0; display: none; }
+    .success { color: green; font-weight: bold; }
   </style>
 </head>
-
 <body>
   <h2>Nhập mã hàng</h2>
-
   <div id="list"></div>
 
   <button onclick="addRow()">+ Thêm dòng</button>
-  <button onclick="submitData()">Gửi</button>
+  <button onclick="submitData()">🚀 Gửi đơn hàng</button>
 
   <div id="video"></div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
-    import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyBA9z_fWdU2fOGQazkmMsxhrw_ZWkz49JY",
-      authDomain: "in-barcode.firebaseapp.com",
-      projectId: "in-barcode",
-      storageBucket: "in-barcode.firebasestorage.app",
-      messagingSenderId: "843997057895",
-      appId: "1:843997057895:web:68d856ce7b4050c13895c2"
-    };
-
+    const firebaseConfig = { /* giữ nguyên */ };
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
     let currentInput = null;
+    let isScanning = false;
 
     function addRow() {
       const div = document.createElement("div");
       div.className = "row";
-
       div.innerHTML = `
-        <input placeholder="Mã hàng">
-        <input placeholder="SL" type="number">
+        <input type="text" placeholder="Mã hàng" class="code-input">
+        <input type="number" placeholder="SL" class="qty-input" value="1">
         <button class="scan-btn">📷</button>
       `;
 
-      const btn = div.querySelector("button");
-      const input = div.querySelector("input");
+      const scanBtn = div.querySelector(".scan-btn");
+      const codeInput = div.querySelector(".code-input");
 
-      btn.onclick = () => startScan(input);
-
+      scanBtn.onclick = () => startScan(codeInput);
       document.getElementById("list").appendChild(div);
     }
 
-    window.addRow = addRow;
-
+    // ================== SCAN ==================
     function startScan(input) {
+      if (isScanning) return;
       currentInput = input;
+      isScanning = true;
 
-      const video = document.getElementById("video");
-      video.style.display = "block";
+      const videoContainer = document.getElementById("video");
+      videoContainer.style.display = "block";
+      videoContainer.innerHTML = '<video id="scanner-video" autoplay playsinline></video>';
 
       Quagga.init({
         inputStream: {
           type: "LiveStream",
-          target: video,
-          constraints: {
-            facingMode: "environment"
-          }
+          target: "#scanner-video",
+          constraints: { facingMode: "environment" }
         },
-        decoder: {
-          readers: ["ean_reader", "code_128_reader"]
-        }
-      }, function(err) {
+        decoder: { readers: ["ean_reader", "code_128_reader"] }
+      }, (err) => {
         if (err) {
-          console.log(err);
+          console.error(err);
+          alert("Không thể mở camera");
+          stopScan();
           return;
         }
         Quagga.start();
       });
 
-      Quagga.onDetected(function(data) {
-        let raw = data.codeResult.code;
-
-        // lấy mã bắt đầu bằng 893
-        let match = raw.match(/893\d{10}/);
-
-        if (match) {
-          currentInput.value = match[0];
-        } else {
-          currentInput.value = raw;
-        }
-
-        Quagga.stop();
-        video.innerHTML = "";
-        video.style.display = "none";
-
-        addRow();
-      });
+      Quagga.onDetected(handleDetection);
     }
 
+    function handleDetection(data) {
+      const raw = data.codeResult.code;
+      const match = raw.match(/893\d{10}/);
+
+      if (match) {
+        currentInput.value = match[0];
+      } else {
+        currentInput.value = raw.length > 13 ? raw.slice(-13) : raw;
+      }
+
+      stopScan();
+      addRow();           // tự động thêm dòng mới sau khi scan thành công
+    }
+
+    function stopScan() {
+      Quagga.stop();
+      Quagga.offDetected(handleDetection);   // quan trọng: remove listener
+      document.getElementById("video").style.display = "none";
+      isScanning = false;
+    }
+
+    // ================== SUBMIT ==================
     window.submitData = async function() {
       const rows = document.querySelectorAll(".row");
-      let items = [];
+      const items = [];
 
-      rows.forEach(r => {
-        const inputs = r.querySelectorAll("input");
-        if (inputs[0].value)
-          items.push({
-            code: inputs[0].value,
-            qty: inputs[1].value
-          });
+      rows.forEach(row => {
+        const code = row.querySelector(".code-input").value.trim();
+        const qty = row.querySelector(".qty-input").value.trim();
+        if (code) {
+          items.push({ code, qty: qty || "1" });
+        }
       });
 
       if (items.length === 0) {
-        alert("Chưa nhập dữ liệu");
+        alert("Chưa có dữ liệu nào!");
         return;
       }
 
-      await addDoc(collection(db, "orders"), {
-        items,
-        time: Date.now()
-      });
+      try {
+        await addDoc(collection(db, "orders"), {
+          items,
+          time: serverTimestamp(),
+          status: "pending"
+        });
 
-      alert("Đã gửi!");
-      location.reload();
-    }
+        alert("✅ Đã gửi đơn hàng thành công!");
+        location.reload();
+      } catch (e) {
+        console.error(e);
+        alert("Lỗi khi gửi: " + e.message);
+      }
+    };
 
+    // Khởi tạo 1 dòng đầu tiên
     addRow();
   </script>
 
-  <!-- thư viện barcode -->
   <script src="https://unpkg.com/quagga/dist/quagga.min.js"></script>
 </body>
 </html>
