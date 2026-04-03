@@ -6,12 +6,44 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <style>
-    body { font-family: Arial; padding: 15px; max-width: 500px; margin: auto; }
-    .row { display: flex; gap: 5px; margin-bottom: 10px; }
-    input { flex: 1; padding: 10px; font-size: 16px; }
-    button { width: 100%; padding: 12px; font-size: 16px; margin-top: 10px; }
-    .scan-btn { width: 80px; }
-    video { width: 100%; margin-top: 10px; }
+    body {
+      font-family: Arial;
+      padding: 15px;
+      max-width: 500px;
+      margin: auto;
+    }
+
+    h2 {
+      text-align: center;
+    }
+
+    .row {
+      display: flex;
+      gap: 5px;
+      margin-bottom: 10px;
+    }
+
+    input {
+      flex: 1;
+      padding: 10px;
+      font-size: 16px;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      font-size: 16px;
+      margin-top: 10px;
+    }
+
+    .scan-btn {
+      width: 70px;
+    }
+
+    video {
+      width: 100%;
+      margin-top: 10px;
+    }
   </style>
 </head>
 
@@ -69,33 +101,49 @@
       const video = document.getElementById("video");
       video.style.display = "block";
 
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" }
+      });
+
       video.srcObject = stream;
       await video.play();
 
       scanLoop(video, stream);
     }
 
-    async function scanLoop(video, stream) {
+    function scanLoop(video, stream) {
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d");
 
-      setInterval(() => {
+      const interval = setInterval(() => {
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
         ctx.drawImage(video, 0, 0);
 
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
         const code = window.jsQR(imageData.data, canvas.width, canvas.height);
 
         if (code) {
-          currentInput.value = code.data;
+          let raw = code.data;
 
+          // lấy mã bắt đầu bằng 893 (EAN-13)
+          let match = raw.match(/893\d{10}/);
+
+          if (match) {
+            currentInput.value = match[0];
+          } else {
+            currentInput.value = raw.slice(-13);
+          }
+
+          // dừng camera
+          clearInterval(interval);
           stream.getTracks().forEach(t => t.stop());
           video.style.display = "none";
+
+          // tự thêm dòng mới
+          addRow();
         }
-      }, 500);
+      }, 300);
     }
 
     window.submitData = async function() {
@@ -110,6 +158,11 @@
             qty: inputs[1].value
           });
       });
+
+      if (items.length === 0) {
+        alert("Chưa nhập dữ liệu");
+        return;
+      }
 
       await addDoc(collection(db, "orders"), {
         items,
