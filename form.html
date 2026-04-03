@@ -1,127 +1,185 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
   <meta charset="UTF-8">
+  <title>Nhập đơn</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Nhập mã hàng</title>
+
   <style>
-    * { box-sizing: border-box; }
-    body { font-family: Arial; padding: 10px; background: #f5f5f5; }
-    h2 { text-align: center; }
-    .row { display: flex; gap: 5px; margin-bottom: 10px; }
-    input { padding: 10px; font-size: 16px; border-radius: 6px; border: 1px solid #ccc; }
-    .code-input { flex: 1; }
-    .qty-input { width: 70px; text-align: center; }
-    .scan-btn { width: 50px; background: green; color: white; border: none; border-radius: 6px; }
-    button { width: 100%; padding: 12px; margin-top: 10px; border-radius: 6px; border: none; font-size: 16px; }
-    #scanner-container { width: 100%; height: 260px; margin-top: 10px; border-radius: 10px; overflow: hidden; display: none; background: black; }
-    #status { text-align: center; margin-top: 10px; font-weight: bold; color: green; }
-    #close-camera { background: red; color: white; }
+    body {
+      font-family: Arial;
+      padding: 15px;
+      max-width: 500px;
+      margin: auto;
+    }
+
+    h2 {
+      text-align: center;
+    }
+
+    .row {
+      display: flex;
+      gap: 5px;
+      margin-bottom: 10px;
+    }
+
+    input {
+      flex: 1;
+      padding: 10px;
+      font-size: 16px;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      font-size: 16px;
+      margin-top: 10px;
+    }
+
+    .scan-btn {
+      width: 70px;
+    }
+
+    #video {
+      width: 100%;
+      height: 260px;
+      margin-top: 10px;
+      border-radius: 10px;
+    }
   </style>
 </head>
+
 <body>
+  <h2>Nhập mã hàng</h2>
 
-<h2>Nhập mã hàng</h2>
+  <div id="list"></div>
 
-<div id="list"></div>
+  <button onclick="addRow()">+ Thêm dòng</button>
+  <button onclick="submitData()">Gửi</button>
 
-<button onclick="addRow()">+ Thêm dòng</button>
-<button onclick="submitData()">🚀 Gửi đơn hàng</button>
+  <div id="video"></div>
 
-<div id="status"></div>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
+    import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 
-<div id="scanner-container"></div>
-<button id="close-camera" onclick="stopScan()" style="display:none">✕ Đóng Camera</button>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBA9z_fWdU2fOGQazkmMsxhrw_ZWkz49JY",
+      authDomain: "in-barcode.firebaseapp.com",
+      projectId: "in-barcode",
+      storageBucket: "in-barcode.firebasestorage.app",
+      messagingSenderId: "843997057895",
+      appId: "1:843997057895:web:68d856ce7b4050c13895c2"
+    };
 
-<!-- Thêm CDN của @zxing/browser vào đây -->
-<script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.18.6/dist/index.min.js"></script>
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
 
-<script>
-let codeReader;
-let currentInput;
-let isScanning = false;
+    let currentInput = null;
 
-function addRow() {
-  const div = document.createElement("div");
-  div.className = "row";
-  div.innerHTML = `
-    <input class="code-input" placeholder="Mã hàng">
-    <input class="qty-input" type="number" value="1">
-    <button class="scan-btn">📷</button>
-  `;
+    function addRow() {
+      const div = document.createElement("div");
+      div.className = "row";
 
-  div.querySelector(".scan-btn").onclick = () => {
-    startScan(div.querySelector(".code-input"));
-  };
+      div.innerHTML = `
+        <input placeholder="Mã hàng">
+        <input placeholder="SL" type="number">
+        <button class="scan-btn">📷</button>
+      `;
 
-  document.getElementById("list").appendChild(div);
-}
+      const btn = div.querySelector("button");
+      const input = div.querySelector("input");
 
-addRow();
+      btn.onclick = () => startScan(input);
 
-async function startScan(input) {
-  if (isScanning) return;
-
-  isScanning = true;
-  currentInput = input;
-
-  const container = document.getElementById("scanner-container");
-  const status = document.getElementById("status");
-  const closeBtn = document.getElementById("close-camera");
-
-  container.style.display = "block";
-  closeBtn.style.display = "block";
-  status.innerText = "Đang mở camera...";
-
-  codeReader = new ZXing.BrowserMultiFormatReader();
-  try {
-    // Kiểm tra và lấy danh sách các video input devices
-    const videoInputDevices = await codeReader.listVideoInputDevices();
-    if (videoInputDevices.length > 0) {
-      const deviceId = videoInputDevices[0].deviceId; // Chọn thiết bị đầu tiên
-      await codeReader.decodeFromVideoDevice(deviceId, 'scanner-container', (result, err) => {
-        if (result) {
-          let code = result.getText();
-          currentInput.value = code;
-          status.innerText = "✅ Quét: " + code;
-          setTimeout(() => {
-            stopScan();
-            addRow();
-          }, 700);
-        }
-        if (err) {
-          console.error(err);
-        }
-      });
-      status.innerText = "✅ Đưa mã vào camera";
-    } else {
-      status.innerText = "❌ Không tìm thấy camera";
-      isScanning = false;
+      document.getElementById("list").appendChild(div);
     }
-  } catch (err) {
-    status.innerText = "❌ Không mở được camera";
-    isScanning = false;
-  }
-}
 
-async function stopScan() {
-  if (codeReader) {
-    try {
-      await codeReader.reset();
-    } catch (e) {}
-  }
+    window.addRow = addRow;
 
-  document.getElementById("scanner-container").style.display = "none";
-  document.getElementById("close-camera").style.display = "none";
-  document.getElementById("status").innerText = "";
+    function startScan(input) {
+      currentInput = input;
 
-  isScanning = false;
-}
+      const video = document.getElementById("video");
+      video.style.display = "block";
 
-async function submitData() {
-  alert("Demo gửi dữ liệu (bạn giữ nguyên Firebase cũ)");
-}
-</script>
+      // Kiểm tra xem Quagga đã được khởi tạo chưa
+      if (typeof Quagga === 'undefined') {
+        alert('Quagga.js chưa được tải hoặc khởi tạo đúng!');
+        return;
+      }
 
+      Quagga.init({
+        inputStream: {
+          type: "LiveStream",
+          target: video,
+          constraints: {
+            facingMode: "environment"
+          }
+        },
+        decoder: {
+          readers: ["ean_reader", "code_128_reader"]
+        }
+      }, function(err) {
+        if (err) {
+          console.log("Lỗi khi khởi tạo Quagga:", err);
+          return;
+        }
+        console.log("Quagga đã được khởi tạo thành công!");
+        Quagga.start();
+      });
+
+      Quagga.onDetected(function(data) {
+        let raw = data.codeResult.code;
+
+        // lấy mã bắt đầu bằng 893
+        let match = raw.match(/893\d{10}/);
+
+        if (match) {
+          currentInput.value = match[0];
+        } else {
+          currentInput.value = raw;
+        }
+
+        Quagga.stop();
+        video.innerHTML = "";
+        video.style.display = "none";
+
+        addRow();
+      });
+    }
+
+    window.submitData = async function() {
+      const rows = document.querySelectorAll(".row");
+      let items = [];
+
+      rows.forEach(r => {
+        const inputs = r.querySelectorAll("input");
+        if (inputs[0].value)
+          items.push({
+            code: inputs[0].value,
+            qty: inputs[1].value
+          });
+      });
+
+      if (items.length === 0) {
+        alert("Chưa nhập dữ liệu");
+        return;
+      }
+
+      await addDoc(collection(db, "orders"), {
+        items,
+        time: Date.now()
+      });
+
+      alert("Đã gửi!");
+      location.reload();
+    }
+
+    addRow();
+  </script>
+
+  <!-- thư viện barcode -->
+  <script src="https://unpkg.com/quagga/dist/quagga.min.js"></script>
 </body>
 </html>
