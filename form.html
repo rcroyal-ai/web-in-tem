@@ -1,63 +1,94 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Nhập đơn</title>
+  <title>Nhập đơn hàng</title>
   <style>
     body {
-      font-family: Arial;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       padding: 15px;
-      width: 320px; /* Đảm bảo chiều rộng nhỏ, phù hợp với điện thoại */
+      max-width: 400px; /* Tăng nhẹ để phù hợp đa số điện thoại */
       margin: auto;
+      background-color: #f4f4f9;
     }
 
     h2 {
       text-align: center;
+      color: #333;
     }
 
     .row {
       display: flex;
-      gap: 5px;
-      margin-bottom: 10px;
+      gap: 8px;
+      margin-bottom: 12px;
+      background: #fff;
+      padding: 10px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
 
     input {
       flex: 1;
-      padding: 8px;
-      font-size: 14px; /* Giảm kích thước font */
+      padding: 10px;
+      font-size: 16px; /* Tránh tình trạng iOS tự động zoom khi focus vào input */
+      border: 1px solid #ddd;
+      border-radius: 4px;
     }
 
     .qty-input {
-      flex: 0.5; /* Thu nhỏ cột số lượng */
+      flex: 0.4;
     }
 
     button {
       width: 100%;
-      padding: 12px;
-      font-size: 14px;
+      padding: 14px;
+      font-size: 16px;
+      font-weight: bold;
       margin-top: 10px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
     }
 
+    .add-btn { background-color: #2ecc71; color: white; }
+    .submit-btn { background-color: #3498db; color: white; }
+    
     .scan-btn {
-      width: 70px;
+      width: 50px;
+      padding: 0;
+      margin-top: 0;
+      background-color: #e74c3c;
+      color: white;
+      font-size: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
+    /* KHU VỰC QUAN TRỌNG: FIX LỖI CAMERA TRÀN MÀN HÌNH */
     #video {
       width: 100%;
-      max-width: 200px; /* Đảm bảo khung camera có chiều rộng nhỏ */
-      height: 200px;
-      margin-top: 10px;
-      display: block;
-      margin-left: auto;
-      margin-right: auto;
-      border: 1px solid #ccc; /* Tạo đường viền cho video để dễ nhận diện */
+      max-width: 300px;
+      height: 250px;
+      margin: 15px auto;
+      display: none; /* Ẩn khi chưa dùng */
+      border: 3px solid #3498db;
+      border-radius: 10px;
+      overflow: hidden; /* Cắt phần video tràn ra ngoài */
+      position: relative;
+      background-color: #000;
     }
 
-    .container {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
+    /* Ép video và canvas do Quagga tạo ra phải theo khung cha */
+    #video video, #video canvas {
+      width: 100% !important;
+      height: 100% !important;
+      object-fit: cover; /* Lấp đầy khung không để khoảng trắng */
+    }
+
+    #list {
+      margin-top: 10px;
     }
   </style>
 </head>
@@ -66,13 +97,15 @@
   <h2>Nhập mã hàng</h2>
 
   <div class="container">
+    <div id="video"></div>
+
     <div id="list"></div>
 
-    <button onclick="addRow()">+ Thêm dòng</button>
-    <button onclick="submitData()">Gửi</button>
-
-    <div id="video"></div>
+    <button class="add-btn" onclick="addRow()">+ Thêm dòng</button>
+    <button class="submit-btn" onclick="submitData()">Gửi dữ liệu</button>
   </div>
+
+  <script src="https://unpkg.com/quagga/dist/quagga.min.js"></script>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
@@ -91,80 +124,81 @@
     const db = getFirestore(app);
 
     let currentInput = null;
-    let isScanning = false;
     let scanInProgress = false;
 
     function addRow() {
       const div = document.createElement("div");
       div.className = "row";
-
       div.innerHTML = `
-        <input placeholder="Mã hàng">
+        <input placeholder="Mã hàng" class="code-input">
         <input class="qty-input" placeholder="SL" type="number">
         <button class="scan-btn">📷</button>
       `;
 
-      const btn = div.querySelector("button");
-      const input = div.querySelector("input");
+      const btn = div.querySelector(".scan-btn");
+      const input = div.querySelector(".code-input");
 
       btn.onclick = () => startScan(input);
-
       document.getElementById("list").appendChild(div);
     }
-
     window.addRow = addRow;
 
     function startScan(input) {
-      if (scanInProgress) return;
+      if (scanInProgress) {
+        Quagga.stop(); // Dừng nếu đang chạy cái cũ
+      }
 
       currentInput = input;
       scanInProgress = true;
 
-      const video = document.getElementById("video");
-      video.style.display = "block";
+      const videoContainer = document.getElementById("video");
+      videoContainer.style.display = "block"; // Hiện khung camera
 
       Quagga.init({
         inputStream: {
+          name: "Live",
           type: "LiveStream",
-          target: video,
+          target: videoContainer,
           constraints: {
-            facingMode: "environment"
+            facingMode: "environment" // Ưu tiên camera sau
           }
         },
         decoder: {
-          readers: ["ean_reader", "code_128_reader"]
-        },
-        locator: {
-          patchSize: "medium",
-          halfSample: true
+          readers: ["ean_reader", "code_128_reader", "code_39_reader"] 
         },
         locate: true
       }, function(err) {
         if (err) {
-          console.log(err);
+          console.error(err);
+          alert("Lỗi camera: " + err);
           return;
         }
         Quagga.start();
       });
 
+      // Lắng nghe kết quả quét
       Quagga.onDetected(function(data) {
         let raw = data.codeResult.code;
-
-        // Update the input field with the scanned barcode
+        
+        // Tối ưu lọc mã 893 (Việt Nam) nếu cần
         let match = raw.match(/893\d{10}/);
-        if (match) {
-          currentInput.value = match[0];
-        } else {
-          currentInput.value = raw;
-        }
+        currentInput.value = match ? match[0] : raw;
 
-        // Stop Quagga and hide the video after detecting
-        Quagga.stop();
-        video.innerHTML = "";
-        video.style.display = "none";
-
-        scanInProgress = false;
+        // Dừng camera và ẩn đi ngay khi xong
+        stopScan();
+        
+        // Phản hồi rung nhẹ nếu điện thoại hỗ trợ
+        if (navigator.vibrate) navigator.vibrate(100);
       });
+    }
+
+    function stopScan() {
+      Quagga.stop();
+      const videoContainer = document.getElementById("video");
+      videoContainer.style.display = "none";
+      scanInProgress = false;
+      // Dọn dẹp các thẻ video/canvas thừa bên trong
+      videoContainer.innerHTML = "";
     }
 
     window.submitData = async function() {
@@ -173,30 +207,33 @@
 
       rows.forEach(r => {
         const inputs = r.querySelectorAll("input");
-        if (inputs[0].value)
+        if (inputs[0].value) {
           items.push({
             code: inputs[0].value,
-            qty: inputs[1].value
+            qty: inputs[1].value || 1
           });
+        }
       });
 
       if (items.length === 0) {
-        alert("Chưa nhập dữ liệu");
+        alert("Chưa có dữ liệu để gửi!");
         return;
       }
 
-      await addDoc(collection(db, "orders"), {
-        items,
-        time: Date.now()
-      });
-
-      alert("Đã gửi!");
-      location.reload();
+      try {
+        await addDoc(collection(db, "orders"), {
+          items,
+          time: Date.now()
+        });
+        alert("Gửi đơn hàng thành công!");
+        location.reload();
+      } catch (e) {
+        alert("Lỗi khi gửi: " + e.message);
+      }
     }
 
+    // Tạo dòng đầu tiên khi tải trang
     addRow();
   </script>
-
-  <script src="https://unpkg.com/quagga/dist/quagga.min.js"></script>
 </body>
 </html>
