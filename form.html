@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>Nhập đơn hàng</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <style>
     body { 
       font-family: Arial, sans-serif; 
@@ -37,12 +37,13 @@
       width: 100%; 
       border-radius: 6px; 
     }
-    #video { 
+    #scanner-container { 
       width: 100%; 
       margin: 15px 0; 
       display: none; 
-      border: 2px solid #333; 
+      border: 3px solid #4CAF50; 
       border-radius: 8px; 
+      overflow: hidden;
     }
   </style>
 </head>
@@ -53,7 +54,8 @@
   <button onclick="addRow()">+ Thêm dòng</button>
   <button onclick="submitData()">🚀 Gửi đơn hàng</button>
 
-  <div id="video"></div>
+  <!-- Scanner Container -->
+  <div id="scanner-container"></div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
@@ -74,7 +76,6 @@
     let currentInput = null;
     let isScanning = false;
 
-    // ====================== ADD ROW ======================
     function addRow() {
       const div = document.createElement("div");
       div.className = "row";
@@ -84,36 +85,40 @@
         <button class="scan-btn" type="button">📷</button>
       `;
 
-      const scanBtn = div.querySelector(".scan-btn");
-      const codeInput = div.querySelector(".code-input");
-
-      scanBtn.onclick = () => startScan(codeInput);
-
+      div.querySelector(".scan-btn").onclick = () => startScan(div.querySelector(".code-input"));
       document.getElementById("list").appendChild(div);
-      return div;
     }
 
-    // ====================== SCAN ======================
+    // ====================== CAMERA SCAN ======================
     function startScan(input) {
       if (isScanning) return;
       currentInput = input;
       isScanning = true;
 
-      const videoContainer = document.getElementById("video");
-      videoContainer.style.display = "block";
-      videoContainer.innerHTML = '<video id="scanner-video" autoplay playsinline></video>';
+      const container = document.getElementById("scanner-container");
+      container.style.display = "block";
+      container.innerHTML = "";   // clear trước khi init
 
       Quagga.init({
         inputStream: {
+          name: "Live",
           type: "LiveStream",
-          target: "#scanner-video",
-          constraints: { facingMode: "environment" }
+          target: container,                    // <-- Quan trọng: target container
+          constraints: {
+            width: { min: 640 },
+            height: { min: 480 },
+            facingMode: "environment",
+            aspectRatio: { min: 1, max: 2 }
+          }
         },
-        decoder: { readers: ["ean_reader", "code_128_reader"] }
-      }, (err) => {
+        decoder: {
+          readers: ["ean_reader", "code_128_reader"]
+        },
+        locate: true
+      }, function(err) {
         if (err) {
           console.error(err);
-          alert("Không mở được camera. Vui lòng thử lại.");
+          alert("Không thể mở camera.\n\nVui lòng kiểm tra:\n1. Đã cho phép camera?\n2. Truy cập qua HTTPS?");
           stopScan();
           return;
         }
@@ -134,13 +139,13 @@
       }
 
       stopScan();
-      addRow();        // Tự động thêm dòng mới sau scan
+      addRow();   // thêm dòng mới
     }
 
     function stopScan() {
       Quagga.stop();
       Quagga.offDetected(handleDetection);
-      document.getElementById("video").style.display = "none";
+      document.getElementById("scanner-container").style.display = "none";
       isScanning = false;
     }
 
@@ -152,15 +157,10 @@
       rows.forEach(row => {
         const code = row.querySelector(".code-input").value.trim();
         const qty = row.querySelector(".qty-input").value.trim();
-        if (code) {
-          items.push({ code, qty: qty || "1" });
-        }
+        if (code) items.push({ code, qty: qty || "1" });
       });
 
-      if (items.length === 0) {
-        alert("Chưa có dữ liệu nào!");
-        return;
-      }
+      if (items.length === 0) return alert("Chưa có dữ liệu!");
 
       try {
         await addDoc(collection(db, "orders"), {
@@ -168,23 +168,17 @@
           time: serverTimestamp(),
           status: "pending"
         });
-
         alert("✅ Gửi thành công!");
         location.reload();
       } catch (e) {
-        console.error(e);
-        alert("Lỗi: " + e.message);
+        alert("Lỗi gửi: " + e.message);
       }
     };
 
-    // Khởi tạo dòng đầu tiên
-    addRow();
-
-    // Export hàm addRow ra global để button onclick gọi được
     window.addRow = addRow;
+    addRow();   // khởi tạo dòng đầu
   </script>
 
-  <!-- QuaggaJS -->
   <script src="https://unpkg.com/quagga/dist/quagga.min.js"></script>
 </body>
 </html>
