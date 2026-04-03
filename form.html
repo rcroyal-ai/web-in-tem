@@ -75,24 +75,29 @@ async function startScan(input) {
 
   codeReader = new ZXing.BrowserMultiFormatReader();
   try {
+    // Kiểm tra và lấy danh sách các video input devices
     const videoInputDevices = await codeReader.listVideoInputDevices();
-    const deviceId = videoInputDevices[0].deviceId;
-    await codeReader.decodeFromVideoDevice(deviceId, 'scanner-container', (result, err) => {
-      if (result) {
-        let code = result.getText();
-        currentInput.value = code;
-        status.innerText = "✅ Quét: " + code;
-        setTimeout(() => {
-          stopScan();
-          addRow();
-        }, 700);
-      }
-      if (err) {
-        console.error(err);
-      }
-    });
-
-    status.innerText = "✅ Đưa mã vào camera";
+    if (videoInputDevices.length > 0) {
+      const deviceId = videoInputDevices[0].deviceId; // Chọn thiết bị đầu tiên
+      await codeReader.decodeFromVideoDevice(deviceId, 'scanner-container', (result, err) => {
+        if (result) {
+          let code = result.getText();
+          currentInput.value = code;
+          status.innerText = "✅ Quét: " + code;
+          setTimeout(() => {
+            stopScan();
+            addRow();
+          }, 700);
+        }
+        if (err) {
+          console.error(err);
+        }
+      });
+      status.innerText = "✅ Đưa mã vào camera";
+    } else {
+      status.innerText = "❌ Không tìm thấy camera";
+      isScanning = false;
+    }
   } catch (err) {
     status.innerText = "❌ Không mở được camera";
     isScanning = false;
