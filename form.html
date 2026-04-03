@@ -2,63 +2,68 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Nhập đơn hàng</title>
+  <title>Nhập đơn</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+
   <style>
-    body { 
-      font-family: Arial, sans-serif; 
-      padding: 15px; 
-      max-width: 500px; 
-      margin: auto; 
+    body {
+      font-family: Arial, sans-serif;
+      padding: 15px;
+      max-width: 500px;
+      margin: auto;
     }
-    h2 { text-align: center; margin-bottom: 20px; }
-    .row { 
-      display: flex; 
-      gap: 8px; 
-      margin-bottom: 12px; 
-      align-items: center; 
+    h2 { text-align: center; }
+    .row {
+      display: flex;
+      gap: 5px;
+      margin-bottom: 10px;
+      align-items: center;
     }
-    input { 
-      flex: 1; 
-      padding: 12px; 
-      font-size: 16px; 
-      border: 1px solid #ccc; 
-      border-radius: 6px; 
+    input {
+      flex: 1;
+      padding: 12px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
     }
-    .scan-btn { 
-      width: 60px; 
-      font-size: 22px; 
-      padding: 10px; 
-      background: #4CAF50; 
-      color: white; 
-      border: none; 
-      border-radius: 6px; 
+    button {
+      width: 100%;
+      padding: 12px;
+      font-size: 16px;
+      margin-top: 10px;
+      border-radius: 6px;
     }
-    button { 
-      padding: 14px; 
-      font-size: 16px; 
-      margin-top: 10px; 
-      width: 100%; 
-      border-radius: 6px; 
+    .scan-btn {
+      width: 70px;
+      font-size: 20px;
+      background: #4CAF50;
+      color: white;
+      border: none;
     }
-    #scanner-container { 
-      width: 100%; 
-      margin: 15px 0; 
-      display: none; 
-      border: 3px solid #4CAF50; 
-      border-radius: 8px; 
-      min-height: 300px;
+    #scanner-container {
+      width: 100%;
+      margin: 10px 0;
+      display: none;
+      border: 3px solid #4CAF50;
+      border-radius: 8px;
+      min-height: 320px;
       background: #000;
     }
-    #status { text-align: center; margin: 10px 0; color: #d32f2f; font-weight: bold; }
+    #status {
+      text-align: center;
+      margin: 8px 0;
+      font-weight: bold;
+      color: #d32f2f;
+    }
   </style>
 </head>
 <body>
   <h2>Nhập mã hàng</h2>
+
   <div id="list"></div>
 
   <button onclick="addRow()">+ Thêm dòng</button>
-  <button onclick="submitData()">🚀 Gửi đơn hàng</button>
+  <button onclick="submitData()">Gửi</button>
 
   <div id="status"></div>
   <div id="scanner-container"></div>
@@ -84,7 +89,6 @@
     let currentInput = null;
     let isScanning = false;
 
-    // ================== ADD ROW ==================
     function addRow() {
       const div = document.createElement("div");
       div.className = "row";
@@ -98,7 +102,9 @@
       document.getElementById("list").appendChild(div);
     }
 
-    // ================== SCAN CAMERA ==================
+    window.addRow = addRow;
+
+    // ================== CẢI TIẾN CAMERA ==================
     function startScan(input) {
       if (isScanning) return;
       currentInput = input;
@@ -109,24 +115,32 @@
 
       status.textContent = "Đang mở camera...";
       container.style.display = "block";
-      container.innerHTML = "";
 
       Quagga.init({
         inputStream: {
           type: "LiveStream",
           target: container,
-          constraints: { facingMode: "environment" }
+          constraints: {
+            facingMode: "environment",
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          }
         },
-        decoder: { readers: ["ean_reader", "code_128_reader"] },
-        locate: true
-      }, (err) => {
+        decoder: {
+          readers: ["ean_reader", "code_128_reader"],
+          multiple: false
+        },
+        locate: true,
+        numOfWorkers: 4,
+        frequency: 10
+      }, function(err) {
         if (err) {
           console.error(err);
-          status.textContent = "❌ Không mở được camera. Cho phép quyền camera và thử lại.";
-          setTimeout(stopScan, 2500);
+          status.textContent = "❌ Không mở camera. Hãy cho phép quyền Camera!";
+          setTimeout(stopScan, 2000);
           return;
         }
-        status.textContent = "✅ Camera đang chạy - Hướng vào mã vạch";
+        status.textContent = "✅ Camera sẵn sàng - Hướng mã vạch vào khung";
         Quagga.start();
       });
 
@@ -135,12 +149,19 @@
 
     function handleDetection(data) {
       const raw = data.codeResult.code;
-      const match = raw.match(/893\d{10}/);
-      currentInput.value = match ? match[0] : raw;
+      let code = raw;
 
-      document.getElementById("status").textContent = "✅ Quét thành công: " + currentInput.value;
+      // Ưu tiên mã bắt đầu bằng 893 (EAN-13 Việt Nam)
+      const match = raw.match(/893\d{10}/);
+      if (match) {
+        code = match[0];
+      }
+
+      currentInput.value = code;
+      document.getElementById("status").textContent = "✅ Đã quét: " + code;
+
       stopScan();
-      addRow();
+      addRow();        // Tự động thêm dòng mới
     }
 
     function stopScan() {
@@ -154,18 +175,21 @@
     // ================== SUBMIT ==================
     window.submitData = async function() {
       const rows = document.querySelectorAll(".row");
-      const items = [];
+      let items = [];
 
-      rows.forEach(row => {
-        const code = row.querySelector(".code-input").value.trim();
-        const qty = row.querySelector(".qty-input").value.trim();
+      rows.forEach(r => {
+        const inputs = r.querySelectorAll("input");
+        const code = inputs[0].value.trim();
         if (code) {
-          items.push({ code, qty: qty || "1" });
+          items.push({
+            code: code,
+            qty: inputs[1].value || "1"
+          });
         }
       });
 
       if (items.length === 0) {
-        alert("Chưa nhập dữ liệu nào!");
+        alert("Chưa nhập dữ liệu");
         return;
       }
 
@@ -175,15 +199,14 @@
           time: serverTimestamp(),
           status: "pending"
         });
-        alert("✅ Gửi đơn hàng thành công!");
+
+        alert("✅ Đã gửi thành công!");
         location.reload();
       } catch (e) {
-        alert("Lỗi gửi dữ liệu: " + e.message);
+        alert("Lỗi: " + e.message);
       }
     };
 
-    // Khởi tạo và export hàm ra global
-    window.addRow = addRow;
     addRow();   // Tạo dòng đầu tiên
   </script>
 </body>
