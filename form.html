@@ -5,14 +5,45 @@
   <title>Nhập đơn hàng</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body { font-family: Arial; padding: 15px; max-width: 500px; margin: auto; }
-    h2 { text-align: center; }
-    .row { display: flex; gap: 8px; margin-bottom: 12px; align-items: center; }
-    input { flex: 1; padding: 12px; font-size: 16px; }
-    .scan-btn { width: 60px; font-size: 20px; }
-    button { padding: 12px; font-size: 16px; margin-top: 10px; width: 100%; }
-    #video { width: 100%; margin: 10px 0; display: none; }
-    .success { color: green; font-weight: bold; }
+    body { 
+      font-family: Arial, sans-serif; 
+      padding: 15px; 
+      max-width: 500px; 
+      margin: auto; 
+    }
+    h2 { text-align: center; margin-bottom: 20px; }
+    .row { 
+      display: flex; 
+      gap: 8px; 
+      margin-bottom: 12px; 
+      align-items: center; 
+    }
+    input { 
+      flex: 1; 
+      padding: 12px; 
+      font-size: 16px; 
+      border: 1px solid #ccc; 
+      border-radius: 6px; 
+    }
+    .scan-btn { 
+      width: 60px; 
+      font-size: 22px; 
+      padding: 10px; 
+    }
+    button { 
+      padding: 14px; 
+      font-size: 16px; 
+      margin-top: 10px; 
+      width: 100%; 
+      border-radius: 6px; 
+    }
+    #video { 
+      width: 100%; 
+      margin: 15px 0; 
+      display: none; 
+      border: 2px solid #333; 
+      border-radius: 8px; 
+    }
   </style>
 </head>
 <body>
@@ -28,30 +59,41 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
     import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 
-    const firebaseConfig = { /* giữ nguyên */ };
+    const firebaseConfig = {
+      apiKey: "AIzaSyBA9z_fWdU2fOGQazkmMsxhrw_ZWkz49JY",
+      authDomain: "in-barcode.firebaseapp.com",
+      projectId: "in-barcode",
+      storageBucket: "in-barcode.firebasestorage.app",
+      messagingSenderId: "843997057895",
+      appId: "1:843997057895:web:68d856ce7b4050c13895c2"
+    };
+
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
     let currentInput = null;
     let isScanning = false;
 
+    // ====================== ADD ROW ======================
     function addRow() {
       const div = document.createElement("div");
       div.className = "row";
       div.innerHTML = `
         <input type="text" placeholder="Mã hàng" class="code-input">
-        <input type="number" placeholder="SL" class="qty-input" value="1">
-        <button class="scan-btn">📷</button>
+        <input type="number" placeholder="SL" class="qty-input" value="1" min="1">
+        <button class="scan-btn" type="button">📷</button>
       `;
 
       const scanBtn = div.querySelector(".scan-btn");
       const codeInput = div.querySelector(".code-input");
 
       scanBtn.onclick = () => startScan(codeInput);
+
       document.getElementById("list").appendChild(div);
+      return div;
     }
 
-    // ================== SCAN ==================
+    // ====================== SCAN ======================
     function startScan(input) {
       if (isScanning) return;
       currentInput = input;
@@ -71,7 +113,7 @@
       }, (err) => {
         if (err) {
           console.error(err);
-          alert("Không thể mở camera");
+          alert("Không mở được camera. Vui lòng thử lại.");
           stopScan();
           return;
         }
@@ -88,21 +130,21 @@
       if (match) {
         currentInput.value = match[0];
       } else {
-        currentInput.value = raw.length > 13 ? raw.slice(-13) : raw;
+        currentInput.value = raw;
       }
 
       stopScan();
-      addRow();           // tự động thêm dòng mới sau khi scan thành công
+      addRow();        // Tự động thêm dòng mới sau scan
     }
 
     function stopScan() {
       Quagga.stop();
-      Quagga.offDetected(handleDetection);   // quan trọng: remove listener
+      Quagga.offDetected(handleDetection);
       document.getElementById("video").style.display = "none";
       isScanning = false;
     }
 
-    // ================== SUBMIT ==================
+    // ====================== SUBMIT ======================
     window.submitData = async function() {
       const rows = document.querySelectorAll(".row");
       const items = [];
@@ -127,18 +169,22 @@
           status: "pending"
         });
 
-        alert("✅ Đã gửi đơn hàng thành công!");
+        alert("✅ Gửi thành công!");
         location.reload();
       } catch (e) {
         console.error(e);
-        alert("Lỗi khi gửi: " + e.message);
+        alert("Lỗi: " + e.message);
       }
     };
 
-    // Khởi tạo 1 dòng đầu tiên
+    // Khởi tạo dòng đầu tiên
     addRow();
+
+    // Export hàm addRow ra global để button onclick gọi được
+    window.addRow = addRow;
   </script>
 
+  <!-- QuaggaJS -->
   <script src="https://unpkg.com/quagga/dist/quagga.min.js"></script>
 </body>
 </html>
