@@ -80,8 +80,8 @@
     const db = getFirestore(app);
 
     let currentInput = null;
-    let isScanning = false;  // Flag to prevent multiple scanning attempts
-    let scanInProgress = false;  // Flag to control if scan is in progress
+    let isScanning = false;
+    let scanInProgress = false; // Prevent multiple scans
 
     function addRow() {
       const div = document.createElement("div");
@@ -104,10 +104,10 @@
     window.addRow = addRow;
 
     function startScan(input) {
-      if (scanInProgress) return;  // Prevent scanning if a scan is already in progress
+      if (scanInProgress) return; // Prevent new scan if one is already in progress
 
       currentInput = input;
-      scanInProgress = true;  // Set scanning flag to true
+      scanInProgress = true; // Set scanning flag to true
 
       const video = document.getElementById("video");
       video.style.display = "block";
@@ -148,15 +148,15 @@
           currentInput.value = raw;
         }
 
-        setTimeout(function() {
-          Quagga.stop();
-          video.innerHTML = "";
-          video.style.display = "none";
+        // Stop Quagga and hide video after detection
+        Quagga.stop();
+        video.innerHTML = "";
+        video.style.display = "none";
 
-          // Add a row after the scan is complete
-          addRow();
+        setTimeout(() => {
+          addRow();  // Add new row after scanning is complete
           scanInProgress = false;  // Reset scanning flag
-        }, 1000);  // Add delay to prevent rapid row addition
+        }, 500); // Delay to ensure smooth transition
       });
     }
 
