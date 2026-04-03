@@ -132,27 +132,28 @@ async function startScan(input) {
     await html5QrCode.start(
       { facingMode: "environment" },
       {
-        fps: 30,
-        aspectRatio: 1.777,
-        disableFlip: false,
+        fps: 25, // Tăng FPS để cải thiện khả năng quét
+        aspectRatio: 1.777, // Cải thiện khung camera
         formatsToSupport: [
-          Html5QrcodeSupportedFormats.EAN_13,
-          Html5QrcodeSupportedFormats.CODE_128,
-          Html5QrcodeSupportedFormats.QR_CODE
+          Html5QrcodeSupportedFormats.EAN_13,  // Hỗ trợ mã vạch EAN-13
+          Html5QrcodeSupportedFormats.CODE_128, // Hỗ trợ mã vạch CODE-128
+          Html5QrcodeSupportedFormats.QR_CODE   // Hỗ trợ mã QR
         ]
       },
       (decodedText) => {
-        // Lọc mã 893 (EAN-13)
         let match = decodedText.match(/\b893\d{10}\b/);
         let code = match ? match[0] : decodedText;
 
         currentInput.value = code;
         status.innerText = "✅ Quét: " + code;
 
+        // Đảm bảo không thêm dòng mới khi đang quét (chỉ thêm dòng sau khi quét xong)
         setTimeout(() => {
+          if (!isScanning) {
+            addRow();
+          }
           stopScan();
-          addRow();
-        }, 500);
+        }, 700);
       }
     );
 
