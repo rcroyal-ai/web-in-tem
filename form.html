@@ -1,15 +1,14 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Nhập đơn</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
+  <title>Nhập đơn</title>
   <style>
     body {
       font-family: Arial;
       padding: 15px;
-      width: 320px; /* Giảm chiều rộng giao diện */
+      width: 320px; /* Đảm bảo chiều rộng nhỏ, phù hợp với điện thoại */
       margin: auto;
     }
 
@@ -26,7 +25,7 @@
     input {
       flex: 1;
       padding: 8px;
-      font-size: 14px;
+      font-size: 14px; /* Giảm kích thước font */
     }
 
     .qty-input {
@@ -35,7 +34,7 @@
 
     button {
       width: 100%;
-      padding: 10px;
+      padding: 12px;
       font-size: 14px;
       margin-top: 10px;
     }
@@ -45,13 +44,14 @@
     }
 
     #video {
-      width: 200px; /* Khung camera chỉ 200x200px */
+      width: 100%;
+      max-width: 200px; /* Đảm bảo khung camera có chiều rộng nhỏ */
       height: 200px;
       margin-top: 10px;
       display: block;
       margin-left: auto;
       margin-right: auto;
-      position: relative;
+      border: 1px solid #ccc; /* Tạo đường viền cho video để dễ nhận diện */
     }
 
     .container {
@@ -59,7 +59,6 @@
       flex-direction: column;
       align-items: center;
     }
-
   </style>
 </head>
 
@@ -93,7 +92,7 @@
 
     let currentInput = null;
     let isScanning = false;
-    let scanInProgress = false; // Prevent multiple scans
+    let scanInProgress = false;
 
     function addRow() {
       const div = document.createElement("div");
@@ -116,10 +115,10 @@
     window.addRow = addRow;
 
     function startScan(input) {
-      if (scanInProgress) return; // Prevent new scan if one is already in progress
+      if (scanInProgress) return;
 
       currentInput = input;
-      scanInProgress = true; // Set scanning flag to true
+      scanInProgress = true;
 
       const video = document.getElementById("video");
       video.style.display = "block";
@@ -151,21 +150,20 @@
       Quagga.onDetected(function(data) {
         let raw = data.codeResult.code;
 
-        // Only update input if the code matches a pattern
+        // Update the input field with the scanned barcode
         let match = raw.match(/893\d{10}/);
-
         if (match) {
           currentInput.value = match[0];
         } else {
           currentInput.value = raw;
         }
 
-        // Stop Quagga and hide video after detection
+        // Stop Quagga and hide the video after detecting
         Quagga.stop();
         video.innerHTML = "";
         video.style.display = "none";
 
-        scanInProgress = false;  // Reset scanning flag
+        scanInProgress = false;
       });
     }
 
