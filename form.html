@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Nhập đơn</title>
+</head>
+<body>
+  <h2>Nhập mã hàng</h2>
+
+  <div id="list"></div>
+  <button onclick="addRow()">+ Thêm dòng</button>
+  <br><br>
+  <button onclick="submitData()">Gửi</button>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
+    import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBA9z_fWdU2fOGQazkmMsxhrw_ZWkz49JY",
+      authDomain: "in-barcode.firebaseapp.com",
+      projectId: "in-barcode",
+      storageBucket: "in-barcode.firebasestorage.app",
+      messagingSenderId: "843997057895",
+      appId: "1:843997057895:web:68d856ce7b4050c13895c2"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    function addRow() {
+      const div = document.createElement("div");
+      div.innerHTML = `
+        <input placeholder="Mã hàng">
+        <input placeholder="Số lượng" type="number">
+      `;
+      document.getElementById("list").appendChild(div);
+    }
+
+    window.addRow = addRow;
+
+    window.submitData = async function() {
+      const rows = document.querySelectorAll("#list div");
+      let items = [];
+
+      rows.forEach(r => {
+        const inputs = r.querySelectorAll("input");
+        if(inputs[0].value)
+          items.push({
+            code: inputs[0].value,
+            qty: inputs[1].value
+          });
+      });
+
+      await addDoc(collection(db, "orders"), {
+        items,
+        time: Date.now()
+      });
+
+      alert("Đã gửi!");
+      location.reload();
+    }
+
+    addRow();
+  </script>
+</body>
+</html>
