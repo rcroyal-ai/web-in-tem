@@ -29,6 +29,10 @@
       font-size: 16px;
     }
 
+    .qty-input {
+      flex: 0.5;  /* Shrinks the quantity input */
+    }
+
     button {
       width: 100%;
       padding: 12px;
@@ -41,8 +45,10 @@
     }
 
     #video {
-      width: 100%;
+      width: 250px;
+      height: 250px;
       margin-top: 10px;
+      display: none;
     }
   </style>
 </head>
@@ -81,7 +87,7 @@
 
       div.innerHTML = `
         <input placeholder="Mã hàng">
-        <input placeholder="SL" type="number">
+        <input class="qty-input" placeholder="SL" type="number">
         <button class="scan-btn">📷</button>
       `;
 
@@ -132,11 +138,13 @@
           currentInput.value = raw;
         }
 
-        Quagga.stop();
-        video.innerHTML = "";
-        video.style.display = "none";
-
-        addRow();
+        // Adding a delay to prevent auto row issue
+        setTimeout(function() {
+          Quagga.stop();
+          video.innerHTML = "";
+          video.style.display = "none";
+          addRow();
+        }, 1000);  // Delay before adding row
       });
     }
 
