@@ -3,14 +3,60 @@
 <head>
   <meta charset="UTF-8">
   <title>Nhập đơn</title>
+
+  <!-- QUAN TRỌNG: giúp hiển thị đúng trên điện thoại -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <style>
+    body {
+      font-family: Arial;
+      padding: 15px;
+      max-width: 500px;
+      margin: auto;
+    }
+
+    h2 {
+      text-align: center;
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    input {
+      flex: 1;
+      padding: 10px;
+      font-size: 16px;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      font-size: 16px;
+      margin-top: 10px;
+    }
+
+    .add-btn {
+      background: #eee;
+    }
+
+    .submit-btn {
+      background: #4CAF50;
+      color: white;
+      font-weight: bold;
+    }
+  </style>
 </head>
+
 <body>
   <h2>Nhập mã hàng</h2>
 
   <div id="list"></div>
-  <button onclick="addRow()">+ Thêm dòng</button>
-  <br><br>
-  <button onclick="submitData()">Gửi</button>
+
+  <button class="add-btn" onclick="addRow()">+ Thêm dòng</button>
+  <button class="submit-btn" onclick="submitData()">Gửi</button>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
@@ -30,6 +76,7 @@
 
     function addRow() {
       const div = document.createElement("div");
+      div.className = "row";
       div.innerHTML = `
         <input placeholder="Mã hàng">
         <input placeholder="Số lượng" type="number">
@@ -40,17 +87,22 @@
     window.addRow = addRow;
 
     window.submitData = async function() {
-      const rows = document.querySelectorAll("#list div");
+      const rows = document.querySelectorAll(".row");
       let items = [];
 
       rows.forEach(r => {
         const inputs = r.querySelectorAll("input");
-        if(inputs[0].value)
+        if (inputs[0].value)
           items.push({
             code: inputs[0].value,
             qty: inputs[1].value
           });
       });
+
+      if(items.length === 0){
+        alert("Chưa nhập dữ liệu");
+        return;
+      }
 
       await addDoc(collection(db, "orders"), {
         items,
