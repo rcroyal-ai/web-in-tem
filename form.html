@@ -14,11 +14,7 @@
       margin: 0 auto;
       background: #f9f9f9;
     }
-    h2 { 
-      text-align: center; 
-      margin: 8px 0 12px 0;
-      font-size: 18px;
-    }
+    h2 { text-align: center; margin: 8px 0 12px 0; font-size: 18px; }
     
     .row {
       display: flex;
@@ -26,70 +22,36 @@
       margin-bottom: 8px;
       align-items: center;
     }
-    .code-input {
-      flex: 1;
-      padding: 9px 8px;
-      font-size: 15px;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-    }
-    .qty-input {
-      width: 65px;           /* Rất nhỏ */
-      padding: 9px 6px;
-      font-size: 15px;
-      text-align: center;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-    }
+    .code-input { flex: 1; padding: 9px 8px; font-size: 15px; border: 1px solid #ccc; border-radius: 6px; }
+    .qty-input { width: 65px; padding: 9px 6px; font-size: 15px; text-align: center; border: 1px solid #ccc; border-radius: 6px; }
     .scan-btn {
-      width: 44px;
-      height: 44px;
-      font-size: 18px;
-      background: #4CAF50;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      flex-shrink: 0;
+      width: 44px; height: 44px; font-size: 18px;
+      background: #4CAF50; color: white; border: none; border-radius: 8px;
     }
 
-    button {
-      width: 100%;
-      padding: 11px;
-      font-size: 15.5px;
-      margin-top: 6px;
-      border-radius: 6px;
-    }
+    button { width: 100%; padding: 11px; font-size: 15.5px; margin-top: 6px; border-radius: 6px; }
 
-    /* Camera */
     #scanner-container {
-      width: 220px;
-      height: 165px;
+      width: 240px;
+      height: 180px;
       margin: 10px auto;
       display: none;
       border: 3px solid #4CAF50;
       border-radius: 10px;
-      background: #000;
       overflow: hidden;
+      background: #000;
     }
 
-    #status {
-      text-align: center;
-      margin: 6px 0;
-      font-size: 14px;
-      font-weight: bold;
-      min-height: 20px;
-    }
-
+    #status { text-align: center; margin: 6px 0; font-size: 14px; font-weight: bold; }
     #close-camera {
       display: none;
-      width: 220px;
+      width: 240px;
       margin: 6px auto;
-      padding: 8px;
+      padding: 9px;
       background: #f44336;
       color: white;
       border: none;
       border-radius: 6px;
-      font-size: 14px;
     }
   </style>
 </head>
@@ -105,7 +67,8 @@
   <div id="scanner-container"></div>
   <button id="close-camera" onclick="stopScan()">✕ Đóng Camera</button>
 
-  <script src="https://unpkg.com/quagga/dist/quagga.min.js"></script>
+  <!-- Thư viện html5-qrcode -->
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
@@ -123,8 +86,8 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
+    let html5QrCode = null;
     let currentInput = null;
-    let isScanning = false;
 
     function addRow() {
       const div = document.createElement("div");
@@ -142,51 +105,46 @@
     window.addRow = addRow;
 
     function startScan(input) {
-      if (isScanning) return;
       currentInput = input;
-      isScanning = true;
-
       const container = document.getElementById("scanner-container");
       const status = document.getElementById("status");
       const closeBtn = document.getElementById("close-camera");
 
-      status.textContent = "Đang mở camera...";
       container.style.display = "block";
       closeBtn.style.display = "block";
+      status.textContent = "Đang mở camera...";
 
-      Quagga.init({
-        inputStream: { type: "LiveStream", target: container, constraints: { facingMode: "environment" } },
-        decoder: { readers: ["ean_reader", "code_128_reader"] },
-        locate: true,
-        numOfWorkers: 4
-      }, function(err) {
-        if (err) {
-          status.textContent = "❌ Không mở camera";
-          setTimeout(stopScan, 1500);
-          return;
+      html5QrCode = new Html5Qrcode("scanner-container");
+
+      html5QrCode.start(
+        { facingMode: "environment" },
+        { fps: 15, qrbox: { width: 220, height: 160 } },
+        (decodedText) => {
+          let code = decodedText;
+          const match = decodedText.match(/893\d{10}/);
+          if (match) code = match[0];
+
+          currentInput.value = code;
+          status.textContent = "✅ Quét thành công: " + code;
+          stopScan();
+          addRow();
         }
-        status.textContent = "✅ Hướng mã vào khung";
-        Quagga.start();
+      ).catch(err => {
+        status.textContent = "❌ Lỗi mở camera: " + err;
+        console.error(err);
       });
-
-      Quagga.onDetected(handleDetection);
-    }
-
-    function handleDetection(data) {
-      const raw = data.codeResult.code;
-      const match = raw.match(/893\d{10}/);
-      currentInput.value = match ? match[0] : raw;
-      document.getElementById("status").textContent = "✅ Quét thành công!";
-      setTimeout(stopScan, 700);
     }
 
     function stopScan() {
-      Quagga.stop();
-      Quagga.offDetected(handleDetection);
+      if (html5QrCode) {
+        html5QrCode.stop().then(() => {
+          html5QrCode.clear();
+          html5QrCode = null;
+        }).catch(() => {});
+      }
       document.getElementById("scanner-container").style.display = "none";
       document.getElementById("close-camera").style.display = "none";
       document.getElementById("status").textContent = "";
-      isScanning = false;
     }
 
     window.submitData = async function() {
@@ -203,10 +161,14 @@
       });
 
       if (items.length === 0) return alert("Chưa nhập dữ liệu");
-      
+
       try {
-        await addDoc(collection(db, "orders"), { items, time: serverTimestamp(), status: "pending" });
-        alert("✅ Đã gửi!");
+        await addDoc(collection(db, "orders"), {
+          items,
+          time: serverTimestamp(),
+          status: "pending"
+        });
+        alert("✅ Đã gửi thành công!");
         location.reload();
       } catch (e) {
         alert("Lỗi: " + e.message);
