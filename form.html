@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <title>Nhập đơn</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
 
   <style>
     * { box-sizing: border-box; }
@@ -14,44 +15,79 @@
       margin: 0 auto;
       background: #f9f9f9;
     }
-    h2 { text-align: center; margin: 8px 0 12px 0; font-size: 18px; }
+    h2 { 
+      text-align: center; 
+      margin: 10px 0 12px 0; 
+      font-size: 18px; 
+    }
     
     .row {
       display: flex;
-      gap: 4px;
+      gap: 5px;
       margin-bottom: 8px;
       align-items: center;
     }
-    .code-input { flex: 1; padding: 9px 8px; font-size: 15px; border: 1px solid #ccc; border-radius: 6px; }
-    .qty-input { width: 65px; padding: 9px 6px; font-size: 15px; text-align: center; border: 1px solid #ccc; border-radius: 6px; }
+    .code-input {
+      flex: 1;
+      padding: 10px;
+      font-size: 15px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+    .qty-input {
+      width: 68px;
+      padding: 10px;
+      font-size: 15px;
+      text-align: center;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
     .scan-btn {
-      width: 44px; height: 44px; font-size: 18px;
-      background: #4CAF50; color: white; border: none; border-radius: 8px;
+      width: 48px;
+      height: 48px;
+      font-size: 20px;
+      background: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 8px;
     }
 
-    button { width: 100%; padding: 11px; font-size: 15.5px; margin-top: 6px; border-radius: 6px; }
+    button {
+      width: 100%;
+      padding: 12px;
+      font-size: 16px;
+      margin-top: 8px;
+      border-radius: 6px;
+    }
 
     #scanner-container {
-      width: 240px;
-      height: 180px;
-      margin: 10px auto;
+      width: 100%;
+      max-width: 260px;
+      height: 200px;
+      margin: 12px auto;
       display: none;
       border: 3px solid #4CAF50;
-      border-radius: 10px;
+      border-radius: 12px;
       overflow: hidden;
       background: #000;
     }
 
-    #status { text-align: center; margin: 6px 0; font-size: 14px; font-weight: bold; }
+    #status {
+      text-align: center;
+      margin: 10px 0;
+      font-weight: bold;
+      color: #333;
+    }
+
     #close-camera {
       display: none;
-      width: 240px;
-      margin: 6px auto;
-      padding: 9px;
+      width: 260px;
+      margin: 8px auto;
+      padding: 10px;
       background: #f44336;
       color: white;
       border: none;
-      border-radius: 6px;
+      border-radius: 8px;
     }
   </style>
 </head>
@@ -67,7 +103,7 @@
   <div id="scanner-container"></div>
   <button id="close-camera" onclick="stopScan()">✕ Đóng Camera</button>
 
-  <!-- Thư viện html5-qrcode -->
+  <!-- html5-qrcode -->
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
   <script type="module">
@@ -104,7 +140,7 @@
 
     window.addRow = addRow;
 
-    function startScan(input) {
+    async function startScan(input) {
       currentInput = input;
       const container = document.getElementById("scanner-container");
       const status = document.getElementById("status");
@@ -114,33 +150,41 @@
       closeBtn.style.display = "block";
       status.textContent = "Đang mở camera...";
 
+      if (html5QrCode) await stopScan();
+
       html5QrCode = new Html5Qrcode("scanner-container");
 
-      html5QrCode.start(
-        { facingMode: "environment" },
-        { fps: 15, qrbox: { width: 220, height: 160 } },
-        (decodedText) => {
-          let code = decodedText;
-          const match = decodedText.match(/893\d{10}/);
-          if (match) code = match[0];
-
-          currentInput.value = code;
-          status.textContent = "✅ Quét thành công: " + code;
-          stopScan();
-          addRow();
-        }
-      ).catch(err => {
-        status.textContent = "❌ Lỗi mở camera: " + err;
+      try {
+        await html5QrCode.start(
+          { facingMode: "environment" },
+          { 
+            fps: 12, 
+            qrbox: { width: 220, height: 180 },
+            aspectRatio: 1.0 
+          },
+          (decodedText) => {
+            const match = decodedText.match(/893\d{10}/);
+            const code = match ? match[0] : decodedText;
+            
+            currentInput.value = code;
+            status.textContent = `✅ Quét thành công: ${code}`;
+            setTimeout(stopScan, 800);
+            addRow();
+          }
+        );
+      } catch (err) {
+        status.textContent = "❌ Không mở được camera. Hãy thử mở bằng Safari!";
         console.error(err);
-      });
+      }
     }
 
-    function stopScan() {
+    async function stopScan() {
       if (html5QrCode) {
-        html5QrCode.stop().then(() => {
+        try {
+          await html5QrCode.stop();
           html5QrCode.clear();
-          html5QrCode = null;
-        }).catch(() => {});
+        } catch (e) {}
+        html5QrCode = null;
       }
       document.getElementById("scanner-container").style.display = "none";
       document.getElementById("close-camera").style.display = "none";
@@ -150,6 +194,7 @@
     window.submitData = async function() {
       const rows = document.querySelectorAll(".row");
       let items = [];
+
       rows.forEach(r => {
         const code = r.querySelector(".code-input").value.trim();
         if (code) {
@@ -175,6 +220,7 @@
       }
     };
 
+    // Khởi tạo dòng đầu tiên
     addRow();
   </script>
 </body>
