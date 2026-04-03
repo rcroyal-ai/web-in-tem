@@ -26,7 +26,7 @@
     input {
       flex: 1;
       padding: 8px;
-      font-size: 14px; /* Giảm kích thước font */
+      font-size: 14px;
     }
 
     .qty-input {
@@ -45,25 +45,19 @@
     }
 
     #video {
-      width: 100%;
-      max-width: 200px; /* Đảm bảo camera không tràn ra ngoài */
+      width: 200px; /* Khung camera chỉ 200x200px */
       height: 200px;
       margin-top: 10px;
-      display: none;
+      display: block;
       margin-left: auto;
       margin-right: auto;
+      position: relative;
     }
 
     .container {
       display: flex;
       flex-direction: column;
       align-items: center;
-    }
-
-    /* Đảm bảo phần footer không bị tràn */
-    .footer {
-      margin-top: 10px;
-      text-align: center;
     }
 
   </style>
