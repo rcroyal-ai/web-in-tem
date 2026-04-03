@@ -9,7 +9,7 @@
     body {
       font-family: Arial;
       padding: 15px;
-      max-width: 500px;
+      max-width: 400px; /* Giảm chiều rộng của giao diện */
       margin: auto;
     }
 
@@ -25,18 +25,18 @@
 
     input {
       flex: 1;
-      padding: 10px;
-      font-size: 16px;
+      padding: 8px;
+      font-size: 14px; /* Giảm font size */
     }
 
     .qty-input {
-      flex: 0.5;  /* Shrinks the quantity input */
+      flex: 0.5;
     }
 
     button {
       width: 100%;
-      padding: 12px;
-      font-size: 16px;
+      padding: 10px;
+      font-size: 14px;
       margin-top: 10px;
     }
 
@@ -45,8 +45,8 @@
     }
 
     #video {
-      width: 100%;
-      height: 250px;
+      width: 200px; /* Giảm kích thước camera xuống 200x200px */
+      height: 200px;
       margin-top: 10px;
       display: none;
     }
@@ -153,10 +153,7 @@
         video.innerHTML = "";
         video.style.display = "none";
 
-        setTimeout(() => {
-          addRow();  // Add new row after scanning is complete
-          scanInProgress = false;  // Reset scanning flag
-        }, 500); // Delay to ensure smooth transition
+        scanInProgress = false;  // Reset scanning flag
       });
     }
 
