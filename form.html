@@ -8,59 +8,78 @@
   <style>
     body {
       font-family: Arial, sans-serif;
-      padding: 15px;
-      max-width: 500px;
+      padding: 12px;
+      max-width: 480px;
       margin: auto;
+      background: #f9f9f9;
     }
-    h2 { text-align: center; }
+    h2 { 
+      text-align: center; 
+      margin: 10px 0 15px 0;
+      font-size: 20px;
+    }
     
     .row {
       display: flex;
-      gap: 5px;
+      gap: 6px;
       margin-bottom: 10px;
       align-items: center;
     }
     input {
       flex: 1;
-      padding: 12px;
-      font-size: 16px;
+      padding: 10px;
+      font-size: 15px;
       border: 1px solid #ccc;
       border-radius: 6px;
     }
-    button {
-      width: 100%;
-      padding: 12px;
-      font-size: 16px;
-      margin-top: 10px;
-      border-radius: 6px;
-    }
     .scan-btn {
-      width: 70px;
-      font-size: 20px;
+      width: 55px;
+      font-size: 18px;
       background: #4CAF50;
       color: white;
       border: none;
       border-radius: 6px;
+      padding: 10px 0;
     }
 
-    /* ================== KHUNG CAMERA NHỎ ================== */
+    button {
+      width: 100%;
+      padding: 12px;
+      font-size: 16px;
+      margin-top: 8px;
+      border-radius: 6px;
+    }
+
+    /* Khung Camera */
     #scanner-container {
-      width: 280px;           /* <-- Điều chỉnh kích thước ở đây */
-      height: 200px;          /* <-- Điều chỉnh kích thước ở đây */
-      margin: 15px auto;      /* Căn giữa */
+      width: 260px;
+      height: 190px;
+      margin: 12px auto;
       display: none;
       border: 3px solid #4CAF50;
       border-radius: 12px;
       background: #000;
       overflow: hidden;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
     }
 
     #status {
       text-align: center;
-      margin: 10px 0;
+      margin: 8px 0;
       font-weight: bold;
-      color: #d32f2f;
+      font-size: 14px;
+    }
+
+    #close-camera {
+      display: none;
+      width: 260px;
+      margin: 8px auto;
+      padding: 8px;
+      background: #f44336;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 15px;
     }
   </style>
 </head>
@@ -70,10 +89,11 @@
   <div id="list"></div>
 
   <button onclick="addRow()">+ Thêm dòng</button>
-  <button onclick="submitData()">Gửi</button>
+  <button onclick="submitData()">🚀 Gửi đơn hàng</button>
 
   <div id="status"></div>
   <div id="scanner-container"></div>
+  <button id="close-camera" onclick="stopScan()">✕ Đóng Camera</button>
 
   <script src="https://unpkg.com/quagga/dist/quagga.min.js"></script>
 
@@ -111,6 +131,7 @@
 
     window.addRow = addRow;
 
+    // ================== SCAN CAMERA ==================
     function startScan(input) {
       if (isScanning) return;
       currentInput = input;
@@ -118,9 +139,11 @@
 
       const container = document.getElementById("scanner-container");
       const status = document.getElementById("status");
+      const closeBtn = document.getElementById("close-camera");
 
       status.textContent = "Đang mở camera...";
       container.style.display = "block";
+      closeBtn.style.display = "block";
 
       Quagga.init({
         inputStream: {
@@ -138,7 +161,7 @@
       }, function(err) {
         if (err) {
           status.textContent = "❌ Không mở được camera";
-          setTimeout(stopScan, 2000);
+          setTimeout(stopScan, 1500);
           return;
         }
         status.textContent = "✅ Hướng mã vạch vào khung";
@@ -153,19 +176,21 @@
       const match = raw.match(/893\d{10}/);
       currentInput.value = match ? match[0] : raw;
 
-      document.getElementById("status").textContent = "✅ Quét thành công: " + currentInput.value;
-      stopScan();
-      addRow();
+      document.getElementById("status").textContent = "✅ Quét thành công!";
+      setTimeout(stopScan, 600);
     }
 
     function stopScan() {
       Quagga.stop();
       Quagga.offDetected(handleDetection);
+
       document.getElementById("scanner-container").style.display = "none";
+      document.getElementById("close-camera").style.display = "none";
       document.getElementById("status").textContent = "";
       isScanning = false;
     }
 
+    // ================== SUBMIT ==================
     window.submitData = async function() {
       const rows = document.querySelectorAll(".row");
       let items = [];
@@ -174,7 +199,10 @@
         const inputs = r.querySelectorAll("input");
         const code = inputs[0].value.trim();
         if (code) {
-          items.push({ code, qty: inputs[1].value || "1" });
+          items.push({
+            code: code,
+            qty: inputs[1].value || "1"
+          });
         }
       });
 
@@ -186,13 +214,14 @@
           time: serverTimestamp(),
           status: "pending"
         });
-        alert("✅ Đã gửi!");
+        alert("✅ Đã gửi thành công!");
         location.reload();
       } catch (e) {
         alert("Lỗi: " + e.message);
       }
     };
 
+    // Khởi tạo dòng đầu tiên
     addRow();
   </script>
 </body>
