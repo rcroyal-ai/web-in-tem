@@ -13,6 +13,7 @@
       margin: auto;
     }
     h2 { text-align: center; }
+    
     .row {
       display: flex;
       gap: 5px;
@@ -39,19 +40,25 @@
       background: #4CAF50;
       color: white;
       border: none;
+      border-radius: 6px;
     }
+
+    /* ================== KHUNG CAMERA NHỎ ================== */
     #scanner-container {
-      width: 100%;
-      margin: 10px 0;
+      width: 280px;           /* <-- Điều chỉnh kích thước ở đây */
+      height: 200px;          /* <-- Điều chỉnh kích thước ở đây */
+      margin: 15px auto;      /* Căn giữa */
       display: none;
       border: 3px solid #4CAF50;
-      border-radius: 8px;
-      min-height: 320px;
+      border-radius: 12px;
       background: #000;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     }
+
     #status {
       text-align: center;
-      margin: 8px 0;
+      margin: 10px 0;
       font-weight: bold;
       color: #d32f2f;
     }
@@ -104,7 +111,6 @@
 
     window.addRow = addRow;
 
-    // ================== CẢI TIẾN CAMERA ==================
     function startScan(input) {
       if (isScanning) return;
       currentInput = input;
@@ -126,21 +132,16 @@
             height: { ideal: 720 }
           }
         },
-        decoder: {
-          readers: ["ean_reader", "code_128_reader"],
-          multiple: false
-        },
+        decoder: { readers: ["ean_reader", "code_128_reader"] },
         locate: true,
-        numOfWorkers: 4,
-        frequency: 10
+        numOfWorkers: 4
       }, function(err) {
         if (err) {
-          console.error(err);
-          status.textContent = "❌ Không mở camera. Hãy cho phép quyền Camera!";
+          status.textContent = "❌ Không mở được camera";
           setTimeout(stopScan, 2000);
           return;
         }
-        status.textContent = "✅ Camera sẵn sàng - Hướng mã vạch vào khung";
+        status.textContent = "✅ Hướng mã vạch vào khung";
         Quagga.start();
       });
 
@@ -149,19 +150,12 @@
 
     function handleDetection(data) {
       const raw = data.codeResult.code;
-      let code = raw;
-
-      // Ưu tiên mã bắt đầu bằng 893 (EAN-13 Việt Nam)
       const match = raw.match(/893\d{10}/);
-      if (match) {
-        code = match[0];
-      }
+      currentInput.value = match ? match[0] : raw;
 
-      currentInput.value = code;
-      document.getElementById("status").textContent = "✅ Đã quét: " + code;
-
+      document.getElementById("status").textContent = "✅ Quét thành công: " + currentInput.value;
       stopScan();
-      addRow();        // Tự động thêm dòng mới
+      addRow();
     }
 
     function stopScan() {
@@ -172,7 +166,6 @@
       isScanning = false;
     }
 
-    // ================== SUBMIT ==================
     window.submitData = async function() {
       const rows = document.querySelectorAll(".row");
       let items = [];
@@ -181,17 +174,11 @@
         const inputs = r.querySelectorAll("input");
         const code = inputs[0].value.trim();
         if (code) {
-          items.push({
-            code: code,
-            qty: inputs[1].value || "1"
-          });
+          items.push({ code, qty: inputs[1].value || "1" });
         }
       });
 
-      if (items.length === 0) {
-        alert("Chưa nhập dữ liệu");
-        return;
-      }
+      if (items.length === 0) return alert("Chưa nhập dữ liệu");
 
       try {
         await addDoc(collection(db, "orders"), {
@@ -199,15 +186,14 @@
           time: serverTimestamp(),
           status: "pending"
         });
-
-        alert("✅ Đã gửi thành công!");
+        alert("✅ Đã gửi!");
         location.reload();
       } catch (e) {
         alert("Lỗi: " + e.message);
       }
     };
 
-    addRow();   // Tạo dòng đầu tiên
+    addRow();
   </script>
 </body>
 </html>
