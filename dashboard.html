@@ -17,7 +17,10 @@
       text-align: center;
       color: #1a73e8;
       text-transform: uppercase;
-      letter-spacing: 1px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
     }
 
     #orders {
@@ -25,7 +28,6 @@
       margin: 0 auto;
     }
 
-    /* Card cho mỗi đơn hàng */
     .order-card {
       background: #fff;
       border-radius: 12px;
@@ -50,53 +52,53 @@
       font-weight: bold;
     }
 
-    .order-id {
-      font-size: 0.8rem;
-      color: #999;
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
     }
 
-    /* Bảng mã hàng */
+    .copy-btn {
+      background-color: #f1f3f4;
+      color: #5f6368;
+      border: 1px solid #dadce0;
+      padding: 5px 12px;
+      font-size: 0.75rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .copy-btn:hover {
+      background-color: #e8f0fe;
+      color: #1a73e8;
+    }
+
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 5px;
     }
 
     th {
       text-align: left;
       background-color: #f8f9fa;
-      color: #555;
       padding: 8px;
       font-size: 0.85rem;
-      text-transform: uppercase;
     }
 
     td {
       padding: 10px 8px;
       border-bottom: 1px solid #f1f1f1;
-      font-size: 0.95rem;
     }
 
     .col-code { width: 70%; font-family: monospace; color: #d63031; font-weight: bold; }
     .col-qty { width: 30%; text-align: center; font-weight: bold; background: #e8f0fe; border-radius: 4px; }
-
-    /* Hiệu ứng khi có đơn hàng mới */
-    .order-card {
-      animation: fadeIn 0.5s ease-in-out;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
   </style>
 </head>
 <body>
 
   <h2>📦 QUẢN LÝ ĐƠN HÀNG</h2>
-  <div id="orders">
-    <p style="text-align:center;">Đang tải dữ liệu...</p>
-  </div>
+  <div id="orders"></div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
@@ -114,57 +116,58 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    // Sắp xếp đơn mới nhất lên đầu
-    const q = query(collection(db, "orders"), orderBy("time", "desc"));
+    // HÀM COPY ĐÃ CHỈNH SỬA: CHỈ LẤY MÃ + SỐ LƯỢNG
+    window.copyOrderData = function(btn) {
+      const card = btn.closest('.order-card');
+      const rows = card.querySelectorAll('tbody tr');
+      
+      let textToCopy = "";
+      rows.forEach((row, index) => {
+        const code = row.querySelector('.col-code').textContent.trim();
+        const qty = row.querySelector('.col-qty').textContent.trim();
+        
+        // Chỉ lấy: Mã_hàng [khoảng cách] Số_lượng
+        textToCopy += `${code} ${qty}${index < rows.length - 1 ? '\n' : ''}`;
+      });
 
+      navigator.clipboard.writeText(textToCopy).then(() => {
+        const originalText = btn.innerText;
+        btn.innerText = "✅ Xong!";
+        setTimeout(() => { btn.innerText = originalText; }, 1200);
+      });
+    }
+
+    const q = query(collection(db, "orders"), orderBy("time", "desc"));
     onSnapshot(q, (snapshot) => {
       const container = document.getElementById("orders");
       container.innerHTML = "";
 
-      if (snapshot.empty) {
-        container.innerHTML = "<p style='text-align:center;'>Chưa có đơn hàng nào.</p>";
-        return;
-      }
-
       snapshot.forEach(doc => {
         const data = doc.data();
-        
-        // Chuyển đổi timestamp thành ngày giờ VN
-        const timeDisplay = data.time 
-          ? new Date(data.time).toLocaleString("vi-VN") 
-          : "Không rõ thời gian";
+        const timeStr = data.time ? new Date(data.time).toLocaleString("vi-VN") : "---";
 
         const card = document.createElement("div");
         card.className = "order-card";
+        
+        let tableRows = data.items.map(item => `
+          <tr>
+            <td class="col-code">${item.code}</td>
+            <td class="col-qty">${item.qty}</td>
+          </tr>
+        `).join("");
 
-        // Tạo cấu trúc card đơn hàng
-        let itemsHTML = `
+        card.innerHTML = `
           <div class="order-header">
-            <span class="order-time">🕒 ${timeDisplay}</span>
-            <span class="order-id">ID: ${doc.id.substring(0,6)}...</span>
+            <span class="order-time">🕒 ${timeStr}</span>
+            <div class="header-right">
+              <button class="copy-btn" onclick="copyOrderData(this)">📋 Copy</button>
+            </div>
           </div>
           <table>
-            <thead>
-              <tr>
-                <th class="col-code">Mã hàng</th>
-                <th class="col-qty" style="text-align:center">Số lượng</th>
-              </tr>
-            </thead>
-            <tbody>
+            <thead><tr><th>Mã hàng</th><th style="text-align:center">SL</th></tr></thead>
+            <tbody>${tableRows}</tbody>
+          </table>
         `;
-
-        data.items.forEach(item => {
-          itemsHTML += `
-            <tr>
-              <td class="col-code">${item.code}</td>
-              <td class="col-qty">${item.qty}</td>
-            </tr>
-          `;
-        });
-
-        itemsHTML += `</tbody></table>`;
-        card.innerHTML = itemsHTML;
-        
         container.appendChild(card);
       });
     });
