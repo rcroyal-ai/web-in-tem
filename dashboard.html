@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard in Barcode</title>
+  <title>Dashboard BARCODE</title>
   <style>
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -52,26 +52,21 @@
       font-weight: bold;
     }
 
-    .header-right {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
     .copy-btn {
       background-color: #f1f3f4;
-      color: #5f6368;
-      border: 1px solid #dadce0;
-      padding: 5px 12px;
-      font-size: 0.75rem;
-      border-radius: 4px;
+      color: #1a73e8;
+      border: 1px solid #1a73e8;
+      padding: 6px 15px;
+      font-size: 0.8rem;
+      border-radius: 6px;
       cursor: pointer;
       font-weight: bold;
+      transition: 0.2s;
     }
 
     .copy-btn:hover {
-      background-color: #e8f0fe;
-      color: #1a73e8;
+      background-color: #1a73e8;
+      color: white;
     }
 
     table {
@@ -97,7 +92,7 @@
 </head>
 <body>
 
-  <h2>📦 Quản lí in Barcode</h2>
+  <h2>📦 QUẢN LÝ IN BARCODE</h2>
   <div id="orders"></div>
 
   <script type="module">
@@ -116,7 +111,7 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    // HÀM COPY ĐÃ CHỈNH SỬA: CHỈ LẤY MÃ + SỐ LƯỢNG
+    // FIX LỖI EXCEL: Sử dụng ký tự Tab (\t) để tự động nhảy cột
     window.copyOrderData = function(btn) {
       const card = btn.closest('.order-card');
       const rows = card.querySelectorAll('tbody tr');
@@ -126,14 +121,14 @@
         const code = row.querySelector('.col-code').textContent.trim();
         const qty = row.querySelector('.col-qty').textContent.trim();
         
-        // Chỉ lấy: Mã_hàng [khoảng cách] Số_lượng
-        textToCopy += `${code} ${qty}${index < rows.length - 1 ? '\n' : ''}`;
+        // Dùng \t (Tab) ở giữa Mã và SL để Excel tự chia cột
+        textToCopy += `${code}\t${qty}${index < rows.length - 1 ? '\n' : ''}`;
       });
 
       navigator.clipboard.writeText(textToCopy).then(() => {
         const originalText = btn.innerText;
-        btn.innerText = "✅ Xong!";
-        setTimeout(() => { btn.innerText = originalText; }, 1200);
+        btn.innerText = "✅ Đã Copy (Excel sẵn sàng)";
+        setTimeout(() => { btn.innerText = originalText; }, 1500);
       });
     }
 
@@ -160,7 +155,7 @@
           <div class="order-header">
             <span class="order-time">🕒 ${timeStr}</span>
             <div class="header-right">
-              <button class="copy-btn" onclick="copyOrderData(this)">📋 Copy</button>
+              <button class="copy-btn" onclick="copyOrderData(this)">📋 Copy cho Excel</button>
             </div>
           </div>
           <table>
