@@ -1,12 +1,102 @@
 <!DOCTYPE html>
-<html>
+<html lang="vi">
 <head>
   <meta charset="UTF-8">
-  <title>Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Đơn Hàng</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f0f2f5;
+      margin: 0;
+      padding: 20px;
+      color: #333;
+    }
+
+    h2 {
+      text-align: center;
+      color: #1a73e8;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    #orders {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    /* Card cho mỗi đơn hàng */
+    .order-card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 15px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      border-left: 5px solid #1a73e8;
+    }
+
+    .order-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 1px dashed #eee;
+    }
+
+    .order-time {
+      font-size: 0.9rem;
+      color: #666;
+      font-weight: bold;
+    }
+
+    .order-id {
+      font-size: 0.8rem;
+      color: #999;
+    }
+
+    /* Bảng mã hàng */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 5px;
+    }
+
+    th {
+      text-align: left;
+      background-color: #f8f9fa;
+      color: #555;
+      padding: 8px;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+    }
+
+    td {
+      padding: 10px 8px;
+      border-bottom: 1px solid #f1f1f1;
+      font-size: 0.95rem;
+    }
+
+    .col-code { width: 70%; font-family: monospace; color: #d63031; font-weight: bold; }
+    .col-qty { width: 30%; text-align: center; font-weight: bold; background: #e8f0fe; border-radius: 4px; }
+
+    /* Hiệu ứng khi có đơn hàng mới */
+    .order-card {
+      animation: fadeIn 0.5s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
 </head>
 <body>
-  <h2>Đơn hàng</h2>
-  <div id="orders"></div>
+
+  <h2>📦 QUẢN LÝ ĐƠN HÀNG</h2>
+  <div id="orders">
+    <p style="text-align:center;">Đang tải dữ liệu...</p>
+  </div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
@@ -24,22 +114,58 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
+    // Sắp xếp đơn mới nhất lên đầu
     const q = query(collection(db, "orders"), orderBy("time", "desc"));
 
     onSnapshot(q, (snapshot) => {
       const container = document.getElementById("orders");
       container.innerHTML = "";
 
+      if (snapshot.empty) {
+        container.innerHTML = "<p style='text-align:center;'>Chưa có đơn hàng nào.</p>";
+        return;
+      }
+
       snapshot.forEach(doc => {
         const data = doc.data();
-        const div = document.createElement("div");
+        
+        // Chuyển đổi timestamp thành ngày giờ VN
+        const timeDisplay = data.time 
+          ? new Date(data.time).toLocaleString("vi-VN") 
+          : "Không rõ thời gian";
 
-        div.innerHTML = data.items.map(i =>
-          `${i.code} x ${i.qty}`
-        ).join("<br>");
+        const card = document.createElement("div");
+        card.className = "order-card";
 
-        container.appendChild(div);
-        container.appendChild(document.createElement("hr"));
+        // Tạo cấu trúc card đơn hàng
+        let itemsHTML = `
+          <div class="order-header">
+            <span class="order-time">🕒 ${timeDisplay}</span>
+            <span class="order-id">ID: ${doc.id.substring(0,6)}...</span>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th class="col-code">Mã hàng</th>
+                <th class="col-qty" style="text-align:center">Số lượng</th>
+              </tr>
+            </thead>
+            <tbody>
+        `;
+
+        data.items.forEach(item => {
+          itemsHTML += `
+            <tr>
+              <td class="col-code">${item.code}</td>
+              <td class="col-qty">${item.qty}</td>
+            </tr>
+          `;
+        });
+
+        itemsHTML += `</tbody></table>`;
+        card.innerHTML = itemsHTML;
+        
+        container.appendChild(card);
       });
     });
   </script>
