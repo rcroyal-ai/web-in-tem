@@ -5,46 +5,22 @@
   <title>Nhập đơn hàng</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <style>
-    body { 
-      font-family: Arial, sans-serif; 
-      padding: 15px; 
-      max-width: 500px; 
-      margin: auto; 
-    }
+    body { font-family: Arial, sans-serif; padding: 15px; max-width: 500px; margin: auto; }
     h2 { text-align: center; margin-bottom: 20px; }
-    .row { 
-      display: flex; 
-      gap: 8px; 
-      margin-bottom: 12px; 
-      align-items: center; 
-    }
-    input { 
-      flex: 1; 
-      padding: 12px; 
-      font-size: 16px; 
-      border: 1px solid #ccc; 
-      border-radius: 6px; 
-    }
-    .scan-btn { 
-      width: 60px; 
-      font-size: 22px; 
-      padding: 10px; 
-    }
-    button { 
-      padding: 14px; 
-      font-size: 16px; 
-      margin-top: 10px; 
-      width: 100%; 
-      border-radius: 6px; 
-    }
+    .row { display: flex; gap: 8px; margin-bottom: 12px; align-items: center; }
+    input { flex: 1; padding: 12px; font-size: 16px; border: 1px solid #ccc; border-radius: 6px; }
+    .scan-btn { width: 60px; font-size: 22px; padding: 10px; background: #4CAF50; color: white; border: none; border-radius: 6px; }
+    button { padding: 14px; font-size: 16px; margin-top: 10px; width: 100%; border-radius: 6px; }
     #scanner-container { 
       width: 100%; 
       margin: 15px 0; 
       display: none; 
       border: 3px solid #4CAF50; 
       border-radius: 8px; 
-      overflow: hidden;
+      min-height: 300px;
+      background: #000;
     }
+    #status { text-align: center; margin: 10px 0; color: #666; font-size: 14px; }
   </style>
 </head>
 <body>
@@ -54,22 +30,14 @@
   <button onclick="addRow()">+ Thêm dòng</button>
   <button onclick="submitData()">🚀 Gửi đơn hàng</button>
 
-  <!-- Scanner Container -->
+  <div id="status"></div>
   <div id="scanner-container"></div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
     import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyBA9z_fWdU2fOGQazkmMsxhrw_ZWkz49JY",
-      authDomain: "in-barcode.firebaseapp.com",
-      projectId: "in-barcode",
-      storageBucket: "in-barcode.firebasestorage.app",
-      messagingSenderId: "843997057895",
-      appId: "1:843997057895:web:68d856ce7b4050c13895c2"
-    };
-
+    const firebaseConfig = { /* giữ nguyên config của bạn */ };
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
@@ -89,39 +57,39 @@
       document.getElementById("list").appendChild(div);
     }
 
-    // ====================== CAMERA SCAN ======================
     function startScan(input) {
       if (isScanning) return;
       currentInput = input;
       isScanning = true;
 
       const container = document.getElementById("scanner-container");
+      const status = document.getElementById("status");
+      
+      status.textContent = "Đang mở camera...";
       container.style.display = "block";
-      container.innerHTML = "";   // clear trước khi init
+      container.innerHTML = "";
 
       Quagga.init({
         inputStream: {
-          name: "Live",
           type: "LiveStream",
-          target: container,                    // <-- Quan trọng: target container
+          target: container,
           constraints: {
-            width: { min: 640 },
-            height: { min: 480 },
             facingMode: "environment",
-            aspectRatio: { min: 1, max: 2 }
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
           }
         },
-        decoder: {
-          readers: ["ean_reader", "code_128_reader"]
-        },
-        locate: true
+        decoder: { readers: ["ean_reader", "code_128_reader"] },
+        locate: true,
+        numOfWorkers: 4
       }, function(err) {
         if (err) {
-          console.error(err);
-          alert("Không thể mở camera.\n\nVui lòng kiểm tra:\n1. Đã cho phép camera?\n2. Truy cập qua HTTPS?");
-          stopScan();
+          console.error("Quagga Error:", err);
+          status.textContent = "❌ Không mở được camera: " + err;
+          setTimeout(stopScan, 2000);
           return;
         }
+        status.textContent = "✅ Camera đang chạy - Hướng vào mã vạch";
         Quagga.start();
       });
 
@@ -131,52 +99,27 @@
     function handleDetection(data) {
       const raw = data.codeResult.code;
       const match = raw.match(/893\d{10}/);
+      currentInput.value = match ? match[0] : raw;
 
-      if (match) {
-        currentInput.value = match[0];
-      } else {
-        currentInput.value = raw;
-      }
-
+      document.getElementById("status").textContent = "✅ Đã quét: " + currentInput.value;
       stopScan();
-      addRow();   // thêm dòng mới
+      addRow();
     }
 
     function stopScan() {
       Quagga.stop();
       Quagga.offDetected(handleDetection);
       document.getElementById("scanner-container").style.display = "none";
+      document.getElementById("status").textContent = "";
       isScanning = false;
     }
 
-    // ====================== SUBMIT ======================
-    window.submitData = async function() {
-      const rows = document.querySelectorAll(".row");
-      const items = [];
-
-      rows.forEach(row => {
-        const code = row.querySelector(".code-input").value.trim();
-        const qty = row.querySelector(".qty-input").value.trim();
-        if (code) items.push({ code, qty: qty || "1" });
-      });
-
-      if (items.length === 0) return alert("Chưa có dữ liệu!");
-
-      try {
-        await addDoc(collection(db, "orders"), {
-          items,
-          time: serverTimestamp(),
-          status: "pending"
-        });
-        alert("✅ Gửi thành công!");
-        location.reload();
-      } catch (e) {
-        alert("Lỗi gửi: " + e.message);
-      }
+    window.submitData = async function() { /* giữ nguyên hàm submit */ 
+      // ... (copy hàm submit từ phiên bản trước)
     };
 
     window.addRow = addRow;
-    addRow();   // khởi tạo dòng đầu
+    addRow();
   </script>
 
   <script src="https://unpkg.com/quagga/dist/quagga.min.js"></script>
