@@ -30,7 +30,7 @@
     }
 
     .qty-input {
-      flex: 0.5;
+      flex: 0.5;  /* Shrinks the quantity input */
     }
 
     button {
@@ -46,7 +46,7 @@
 
     #video {
       width: 100%;
-      height: 250px;  /* Giới hạn chiều cao và chiều rộng của camera */
+      height: 250px;
       margin-top: 10px;
       display: none;
     }
@@ -80,7 +80,8 @@
     const db = getFirestore(app);
 
     let currentInput = null;
-    let isScanning = false;
+    let isScanning = false;  // Flag to prevent multiple scanning attempts
+    let scanInProgress = false;  // Flag to control if scan is in progress
 
     function addRow() {
       const div = document.createElement("div");
@@ -103,10 +104,10 @@
     window.addRow = addRow;
 
     function startScan(input) {
-      if (isScanning) return;
+      if (scanInProgress) return;  // Prevent scanning if a scan is already in progress
 
       currentInput = input;
-      isScanning = true;
+      scanInProgress = true;  // Set scanning flag to true
 
       const video = document.getElementById("video");
       video.style.display = "block";
@@ -138,7 +139,9 @@
       Quagga.onDetected(function(data) {
         let raw = data.codeResult.code;
 
+        // Only update input if the code matches a pattern
         let match = raw.match(/893\d{10}/);
+
         if (match) {
           currentInput.value = match[0];
         } else {
@@ -150,9 +153,10 @@
           video.innerHTML = "";
           video.style.display = "none";
 
-          addRow();  // Chỉ thêm dòng khi quét xong
-          isScanning = false;
-        }, 1000);  // Thêm khoảng delay sau khi quét xong
+          // Add a row after the scan is complete
+          addRow();
+          scanInProgress = false;  // Reset scanning flag
+        }, 1000);  // Add delay to prevent rapid row addition
       });
     }
 
