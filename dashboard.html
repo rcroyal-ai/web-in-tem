@@ -4,69 +4,72 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard BARCODE</title>
+
   <style>
     body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background-color: #f0f2f5;
+      font-family: 'Segoe UI', sans-serif;
+      background: #f0f2f5;
       margin: 0;
       padding: 20px;
-      color: #333;
     }
 
     h2 {
       text-align: center;
       color: #1a73e8;
-      text-transform: uppercase;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
     }
 
-    #orders {
-      max-width: 800px;
-      margin: 0 auto;
+    .layout {
+      display: flex;
+      gap: 20px;
+    }
+
+    #today-orders {
+      flex: 2;
+    }
+
+    #history {
+      flex: 1;
+      max-height: 90vh;
+      overflow-y: auto;
+      background: #fff;
+      padding: 10px;
+      border-radius: 10px;
     }
 
     .order-card {
       background: #fff;
-      border-radius: 12px;
-      padding: 15px;
-      margin-bottom: 20px;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 15px;
+      box-shadow: 0 3px 6px rgba(0,0,0,0.1);
       border-left: 5px solid #1a73e8;
     }
 
     .order-header {
       display: flex;
       justify-content: space-between;
-      align-items: center;
-      margin-bottom: 10px;
-      padding-bottom: 8px;
-      border-bottom: 1px dashed #eee;
+      margin-bottom: 8px;
     }
 
     .order-time {
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       color: #666;
       font-weight: bold;
     }
 
     .copy-btn {
-      background-color: #f1f3f4;
-      color: #1a73e8;
+      background: #f1f3f4;
       border: 1px solid #1a73e8;
-      padding: 6px 15px;
-      font-size: 0.8rem;
-      border-radius: 6px;
+      color: #1a73e8;
+      padding: 5px 10px;
       cursor: pointer;
-      font-weight: bold;
-      transition: 0.2s;
+      border-radius: 6px;
+      font-size: 0.8rem;
     }
 
     .copy-btn:hover {
-      background-color: #1a73e8;
-      color: white;
+      background: #1a73e8;
+      color: #fff;
     }
 
     table {
@@ -74,98 +77,174 @@
       border-collapse: collapse;
     }
 
-    th {
-      text-align: left;
-      background-color: #f8f9fa;
-      padding: 8px;
-      font-size: 0.85rem;
-    }
-
     td {
-      padding: 10px 8px;
-      border-bottom: 1px solid #f1f1f1;
+      padding: 6px;
+      border-bottom: 1px solid #eee;
     }
 
-    .col-code { width: 70%; font-family: monospace; color: #d63031; font-weight: bold; }
-    .col-qty { width: 30%; text-align: center; font-weight: bold; background: #e8f0fe; border-radius: 4px; }
+    tbody tr:hover {
+      background: #f5faff;
+    }
+
+    .col-code {
+      font-family: monospace;
+      color: #d63031;
+      font-weight: bold;
+    }
+
+    .col-qty {
+      text-align: center;
+      font-weight: bold;
+      background: #e8f0fe;
+      border-radius: 4px;
+    }
+
+    .history-date {
+      padding: 8px;
+      background: #f1f3f4;
+      margin-bottom: 5px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .history-date:hover {
+      background: #e0e0e0;
+    }
+
   </style>
 </head>
+
 <body>
 
-  <h2>📦 QUẢN LÝ IN BARCODE</h2>
-  <div id="orders"></div>
+<h2>📦 QUẢN LÝ IN BARCODE</h2>
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
-    import { getFirestore, collection, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+<div class="layout">
+  <div id="today-orders"></div>
+  <div id="history"></div>
+</div>
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyBA9z_fWdU2fOGQazkmMsxhrw_ZWkz49JY",
-      authDomain: "in-barcode.firebaseapp.com",
-      projectId: "in-barcode",
-      storageBucket: "in-barcode.firebasestorage.app",
-      messagingSenderId: "843997057895",
-      appId: "1:843997057895:web:68d856ce7b4050c13895c2"
-    };
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
+import { getFirestore, collection, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
+const firebaseConfig = {
+  apiKey: "AIzaSyBA9z_fWdU2fOGQazkmMsxhrw_ZWkz49JY",
+  authDomain: "in-barcode.firebaseapp.com",
+  projectId: "in-barcode",
+};
 
-    // FIX LỖI EXCEL: Sử dụng ký tự Tab (\t) để tự động nhảy cột
-    window.copyOrderData = function(btn) {
-      const card = btn.closest('.order-card');
-      const rows = card.querySelectorAll('tbody tr');
-      
-      let textToCopy = "";
-      rows.forEach((row, index) => {
-        const code = row.querySelector('.col-code').textContent.trim();
-        const qty = row.querySelector('.col-qty').textContent.trim();
-        
-        // Dùng \t (Tab) ở giữa Mã và SL để Excel tự chia cột
-        textToCopy += `${code}\t${qty}${index < rows.length - 1 ? '\n' : ''}`;
-      });
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
-      navigator.clipboard.writeText(textToCopy).then(() => {
-        const originalText = btn.innerText;
-        btn.innerText = "✅ Đã Copy (Excel sẵn sàng)";
-        setTimeout(() => { btn.innerText = originalText; }, 1500);
-      });
+// COPY EXCEL
+window.copyOrderData = function(btn) {
+  const card = btn.closest('.order-card');
+  const rows = card.querySelectorAll('tbody tr');
+
+  let text = "Ma hang\tSo luong\n";
+
+  rows.forEach((row, i) => {
+    const code = row.querySelector('.col-code').textContent.trim();
+    const qty = row.querySelector('.col-qty').textContent.trim();
+    text += `${code}\t${qty}${i < rows.length - 1 ? '\n' : ''}`;
+  });
+
+  navigator.clipboard.writeText(text);
+  btn.innerText = "✅ Copied";
+  setTimeout(() => btn.innerText = "📋 Copy", 1200);
+};
+
+// TOGGLE HISTORY
+window.toggleHistory = function(el) {
+  const content = el.nextElementSibling;
+  content.style.display = content.style.display === "none" ? "block" : "none";
+};
+
+// TIME RANGE TODAY
+const startOfToday = new Date();
+startOfToday.setHours(0,0,0,0);
+
+const endOfToday = new Date();
+endOfToday.setHours(23,59,59,999);
+
+// QUERY
+const q = query(collection(db, "orders"), orderBy("time", "desc"));
+
+onSnapshot(q, (snapshot) => {
+
+  const todayContainer = document.getElementById("today-orders");
+  const historyContainer = document.getElementById("history");
+
+  todayContainer.innerHTML = "";
+  historyContainer.innerHTML = "";
+
+  const oldOrders = {};
+
+  snapshot.forEach(doc => {
+    const data = doc.data();
+    if (!data.time) return;
+
+    const date = data.time.toDate();
+    const dateStr = date.toISOString().split("T")[0];
+
+    const isToday = date >= startOfToday && date <= endOfToday;
+
+    if (isToday) {
+      todayContainer.appendChild(renderOrder(data));
+    } else {
+      if (!oldOrders[dateStr]) oldOrders[dateStr] = [];
+      oldOrders[dateStr].push(data);
     }
+  });
 
-    const q = query(collection(db, "orders"), orderBy("time", "desc"));
-    onSnapshot(q, (snapshot) => {
-      const container = document.getElementById("orders");
-      container.innerHTML = "";
+  // render history
+  Object.keys(oldOrders).forEach(date => {
+    const section = document.createElement("div");
 
-      snapshot.forEach(doc => {
-        const data = doc.data();
-        const timeStr = data.time ? new Date(data.time).toLocaleString("vi-VN") : "---";
+    section.innerHTML = `
+      <div class="history-date" onclick="toggleHistory(this)">
+        📅 ${date} (${oldOrders[date].length})
+      </div>
+      <div style="display:none">
+        ${oldOrders[date].map(o => renderOrderHTML(o)).join("")}
+      </div>
+    `;
 
-        const card = document.createElement("div");
-        card.className = "order-card";
-        
-        let tableRows = data.items.map(item => `
-          <tr>
-            <td class="col-code">${item.code}</td>
-            <td class="col-qty">${item.qty}</td>
-          </tr>
-        `).join("");
+    historyContainer.appendChild(section);
+  });
 
-        card.innerHTML = `
-          <div class="order-header">
-            <span class="order-time">🕒 ${timeStr}</span>
-            <div class="header-right">
-              <button class="copy-btn" onclick="copyOrderData(this)">📋 Copy cho Excel</button>
-            </div>
-          </div>
-          <table>
-            <thead><tr><th>Mã hàng</th><th style="text-align:center">SL</th></tr></thead>
-            <tbody>${tableRows}</tbody>
-          </table>
-        `;
-        container.appendChild(card);
-      });
-    });
-  </script>
+});
+
+// render DOM
+function renderOrder(data) {
+  const card = document.createElement("div");
+  card.className = "order-card";
+  card.innerHTML = renderOrderHTML(data);
+  return card;
+}
+
+// render HTML
+function renderOrderHTML(data) {
+  const timeStr = data.time?.toDate().toLocaleString("vi-VN") || "---";
+
+  const rows = (data.items || []).map(item => `
+    <tr>
+      <td class="col-code">${item.code}</td>
+      <td class="col-qty">${item.qty}</td>
+    </tr>
+  `).join("");
+
+  return `
+    <div class="order-header">
+      <span class="order-time">🕒 ${timeStr}</span>
+      <button class="copy-btn" onclick="copyOrderData(this)">📋 Copy</button>
+    </div>
+    <table><tbody>${rows}</tbody></table>
+  `;
+}
+
+</script>
+
 </body>
 </html>
