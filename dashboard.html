@@ -73,6 +73,14 @@
     table {
       width: 100%;
       border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    th {
+      text-align: left;
+      background: #f8f9fa;
+      padding: 6px;
+      font-size: 0.85rem;
     }
 
     td {
@@ -85,16 +93,24 @@
     }
 
     .col-code {
+      width: 70%;
       font-family: monospace;
       color: #d63031;
       font-weight: bold;
     }
 
     .col-qty {
+      width: 30%;
       text-align: center;
-      font-weight: bold;
+    }
+
+    .qty-box {
       background: #e8f0fe;
-      border-radius: 4px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      display: inline-block;
+      min-width: 40px;
+      font-weight: bold;
     }
 
     .history-date {
@@ -135,14 +151,14 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// 🧠 parse date chống crash
+// parse date chống crash
 function parseDate(time) {
   if (!time) return null;
   if (typeof time.toDate === "function") return time.toDate();
   return new Date(time);
 }
 
-// 📋 copy excel
+// copy excel
 window.copyOrderData = function(btn) {
   const card = btn.closest('.order-card');
   const rows = card.querySelectorAll('tbody tr');
@@ -151,7 +167,7 @@ window.copyOrderData = function(btn) {
 
   rows.forEach((row, i) => {
     const code = row.querySelector('.col-code')?.textContent.trim() || "";
-    const qty = row.querySelector('.col-qty')?.textContent.trim() || "";
+    const qty = row.querySelector('.qty-box')?.textContent.trim() || "";
     text += `${code}\t${qty}${i < rows.length - 1 ? '\n' : ''}`;
   });
 
@@ -160,13 +176,13 @@ window.copyOrderData = function(btn) {
   setTimeout(() => btn.innerText = "📋 Copy", 1200);
 };
 
-// toggle lịch sử
+// toggle history
 window.toggleHistory = function(el) {
   const content = el.nextElementSibling;
   content.style.display = content.style.display === "none" ? "block" : "none";
 };
 
-// thời gian hôm nay
+// today range
 const startOfToday = new Date();
 startOfToday.setHours(0,0,0,0);
 
@@ -203,7 +219,6 @@ onSnapshot(q, (snapshot) => {
       }
     });
 
-    // render history
     Object.keys(oldOrders).forEach(date => {
       const section = document.createElement("div");
 
@@ -241,7 +256,9 @@ function renderOrderHTML(data) {
   const rows = (data.items || []).map(item => `
     <tr>
       <td class="col-code">${item.code || ""}</td>
-      <td class="col-qty">${item.qty || ""}</td>
+      <td class="col-qty">
+        <div class="qty-box">${item.qty || ""}</div>
+      </td>
     </tr>
   `).join("");
 
@@ -251,20 +268,14 @@ function renderOrderHTML(data) {
       <button class="copy-btn" onclick="copyOrderData(this)">📋 Copy</button>
     </div>
     <table>
-  <thead>
-    <tr>
-      <th>Barcode</th>
-      <th style="text-align:center">Số lượng</th>
-    </tr>
-  </thead>
-  <tbody>${rows}</tbody>
-</table>
-th {
-  text-align: left;
-  background: #f8f9fa;
-  padding: 6px;
-  font-size: 0.85rem;
-}
+      <thead>
+        <tr>
+          <th>Barcode</th>
+          <th style="text-align:center">Số lượng</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
   `;
 }
 
