@@ -250,7 +250,21 @@ function renderOrderHTML(data) {
       <span class="order-time">🕒 ${timeStr}</span>
       <button class="copy-btn" onclick="copyOrderData(this)">📋 Copy</button>
     </div>
-    <table><tbody>${rows}</tbody></table>
+    <table>
+  <thead>
+    <tr>
+      <th>Barcode</th>
+      <th style="text-align:center">Số lượng</th>
+    </tr>
+  </thead>
+  <tbody>${rows}</tbody>
+</table>
+th {
+  text-align: left;
+  background: #f8f9fa;
+  padding: 6px;
+  font-size: 0.85rem;
+}
   `;
 }
 
