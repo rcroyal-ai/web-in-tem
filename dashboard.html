@@ -92,17 +92,9 @@
       background: #f5faff;
     }
 
-    .col-code {
-      width: 70%;
-      font-family: monospace;
-      color: #d63031;
-      font-weight: bold;
-    }
-
-    .col-qty {
-      width: 30%;
-      text-align: center;
-    }
+    .col-code { width: 20%; font-weight: bold; color: #d63031; }
+    .col-name { width: 50%; }
+    .col-qty { width: 30%; text-align: center; }
 
     .qty-box {
       background: #e8f0fe;
@@ -142,8 +134,19 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
 import { getFirestore, collection, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 
+// 🔥 LOAD DATA.JSON
+let productMap = {};
+
+async function loadProducts() {
+  const res = await fetch("/data.json"); // ⚠️ QUAN TRỌNG
+  productMap = await res.json();
+}
+
+await loadProducts();
+
+// Firebase config
 const firebaseConfig = {
-  apiKey: "AIzaSyBA9z_fWdU2fOGQazkmMsxhrw_ZWkz49JY",
+  apiKey: "AIzaSy...",
   authDomain: "in-barcode.firebaseapp.com",
   projectId: "in-barcode",
 };
@@ -151,7 +154,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// parse date chống crash
+// parse date
 function parseDate(time) {
   if (!time) return null;
   if (typeof time.toDate === "function") return time.toDate();
@@ -163,7 +166,7 @@ window.copyOrderData = function(btn) {
   const card = btn.closest('.order-card');
   const rows = card.querySelectorAll('tbody tr');
 
-  let text = "Ma hang\tSo luong\n";
+  let text = "Barcode\tSo luong\n";
 
   rows.forEach((row, i) => {
     const code = row.querySelector('.col-code')?.textContent.trim() || "";
@@ -236,7 +239,6 @@ onSnapshot(q, (snapshot) => {
 
   } catch (err) {
     console.error("🔥 Lỗi:", err);
-    document.body.innerHTML = "<h2>🔥 Lỗi render - mở F12 xem chi tiết</h2>";
   }
 });
 
@@ -253,14 +255,20 @@ function renderOrderHTML(data) {
   const date = parseDate(data.time);
   const timeStr = date ? date.toLocaleString("vi-VN") : "---";
 
-  const rows = (data.items || []).map(item => `
-    <tr>
-      <td class="col-code">${item.code || ""}</td>
-      <td class="col-qty">
-        <div class="qty-box">${item.qty || ""}</div>
-      </td>
-    </tr>
-  `).join("");
+  const rows = (data.items || []).map(item => {
+    const code = String(item.code || "");
+    const name = productMap[code] || "";
+
+    return `
+      <tr>
+        <td class="col-code">${code}</td>
+        <td class="col-name">${name}</td>
+        <td class="col-qty">
+          <div class="qty-box">${item.qty || ""}</div>
+        </td>
+      </tr>
+    `;
+  }).join("");
 
   return `
     <div class="order-header">
@@ -271,6 +279,7 @@ function renderOrderHTML(data) {
       <thead>
         <tr>
           <th>Barcode</th>
+          <th>Diễn giải</th>
           <th style="text-align:center">Số lượng</th>
         </tr>
       </thead>
