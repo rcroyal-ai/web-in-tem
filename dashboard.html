@@ -270,9 +270,17 @@ function renderOrderHTML(data) {
     `;
   }).join("");
 
-  return `
-    <div class="order-header">
-      <span class="order-time">🕒 ${timeStr}</span>
+ return `
+  <div class="order-header">
+    <div>
+      <div class="order-time">🕒 ${timeStr}</div>
+      <div style="font-size:0.85rem;color:#1a73e8;font-weight:bold;">
+        🆔 ${data.orderId || "NO-ID"}
+      </div>
+    </div>
+    <button class="copy-btn" onclick="copyOrderData(this)">📋 Copy</button>
+  </div>
+`
       <button class="copy-btn" onclick="copyOrderData(this)">📋 Copy</button>
     </div>
     <table>
