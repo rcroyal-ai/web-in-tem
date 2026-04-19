@@ -47,6 +47,7 @@
       display: flex;
       justify-content: space-between;
       margin-bottom: 8px;
+      align-items: center;
     }
 
     .order-time {
@@ -88,10 +89,6 @@
       border-bottom: 1px solid #eee;
     }
 
-    tbody tr:hover {
-      background: #f5faff;
-    }
-
     .col-code { width: 20%; font-weight: bold; color: #d63031; }
     .col-name { width: 50%; }
     .col-qty { width: 30%; text-align: center; }
@@ -117,7 +114,6 @@
     .history-date:hover {
       background: #e0e0e0;
     }
-
   </style>
 </head>
 
@@ -134,17 +130,26 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
 import { getFirestore, collection, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 
-// 🔥 LOAD DATA.JSON
+// =====================
+// LOAD PRODUCT MAP
+// =====================
 let productMap = {};
 
 async function loadProducts() {
-  const res = await fetch("/data.json"); // ⚠️ QUAN TRỌNG
-  productMap = await res.json();
+  try {
+    const res = await fetch("/data.json");
+    productMap = await res.json();
+  } catch (e) {
+    console.warn("Không load được data.json");
+    productMap = {};
+  }
 }
 
 await loadProducts();
 
-// Firebase config
+// =====================
+// FIREBASE
+// =====================
 const firebaseConfig = {
   apiKey: "AIzaSy...",
   authDomain: "in-barcode.firebaseapp.com",
@@ -154,103 +159,110 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// parse date
+// =====================
+// DATE PARSER
+// =====================
 function parseDate(time) {
   if (!time) return null;
   if (typeof time.toDate === "function") return time.toDate();
   return new Date(time);
 }
 
-// copy excel
+// =====================
+// COPY EXCEL
+// =====================
 window.copyOrderData = function(btn) {
   const card = btn.closest('.order-card');
   const rows = card.querySelectorAll('tbody tr');
 
-  let text = "Barcode\tSo luong\n";
+  const orderId = card.querySelector(".oid")?.innerText || "";
 
-  rows.forEach((row, i) => {
+  let text = "OrderID\tBarcode\tSo luong\n";
+
+  rows.forEach(row => {
     const code = row.querySelector('.col-code')?.textContent.trim() || "";
     const qty = row.querySelector('.qty-box')?.textContent.trim() || "";
-    text += `${code}\t${qty}${i < rows.length - 1 ? '\n' : ''}`;
+    text += `${orderId}\t${code}\t${qty}\n`;
   });
 
   navigator.clipboard.writeText(text);
+
   btn.innerText = "✅ Copied";
   setTimeout(() => btn.innerText = "📋 Copy", 1200);
 };
 
-// toggle history
+// =====================
+// TOGGLE HISTORY
+// =====================
 window.toggleHistory = function(el) {
   const content = el.nextElementSibling;
   content.style.display = content.style.display === "none" ? "block" : "none";
 };
 
-// today range
-const startOfToday = new Date();
-startOfToday.setHours(0,0,0,0);
-
-const endOfToday = new Date();
-endOfToday.setHours(23,59,59,999);
-
-// query
+// =====================
+// FIREBASE QUERY
+// =====================
 const q = query(collection(db, "orders"), orderBy("time", "desc"));
 
 onSnapshot(q, (snapshot) => {
-  try {
+  const todayContainer = document.getElementById("today-orders");
+  const historyContainer = document.getElementById("history");
 
-    const todayContainer = document.getElementById("today-orders");
-    const historyContainer = document.getElementById("history");
+  todayContainer.innerHTML = "";
+  historyContainer.innerHTML = "";
 
-    todayContainer.innerHTML = "";
-    historyContainer.innerHTML = "";
+  const start = new Date();
+  start.setHours(0,0,0,0);
 
-    const oldOrders = {};
+  const end = new Date();
+  end.setHours(23,59,59,999);
 
-    snapshot.forEach(doc => {
-      const data = doc.data();
-      const date = parseDate(data.time);
-      if (!date) return;
+  const old = {};
 
-      const dateStr = date.toISOString().split("T")[0];
-      const isToday = date >= startOfToday && date <= endOfToday;
+  snapshot.forEach(doc => {
+    const data = doc.data();
+    const date = parseDate(data.time);
+    if (!date) return;
 
-      if (isToday) {
-        todayContainer.appendChild(renderOrder(data));
-      } else {
-        if (!oldOrders[dateStr]) oldOrders[dateStr] = [];
-        oldOrders[dateStr].push(data);
-      }
-    });
+    const key = date.toISOString().split("T")[0];
 
-    Object.keys(oldOrders).forEach(date => {
-      const section = document.createElement("div");
+    if (date >= start && date <= end) {
+      todayContainer.appendChild(renderOrder(data));
+    } else {
+      if (!old[key]) old[key] = [];
+      old[key].push(data);
+    }
+  });
 
-      section.innerHTML = `
-        <div class="history-date" onclick="toggleHistory(this)">
-          📅 ${date} (${oldOrders[date].length})
-        </div>
-        <div style="display:none">
-          ${oldOrders[date].map(o => renderOrderHTML(o)).join("")}
-        </div>
-      `;
+  Object.keys(old).forEach(date => {
+    const div = document.createElement("div");
 
-      historyContainer.appendChild(section);
-    });
+    div.innerHTML = `
+      <div class="history-date" onclick="toggleHistory(this)">
+        📅 ${date} (${old[date].length})
+      </div>
+      <div style="display:none">
+        ${old[date].map(renderOrderHTML).join("")}
+      </div>
+    `;
 
-  } catch (err) {
-    console.error("🔥 Lỗi:", err);
-  }
+    historyContainer.appendChild(div);
+  });
 });
 
-// render DOM
+// =====================
+// RENDER WRAPPER
+// =====================
 function renderOrder(data) {
-  const card = document.createElement("div");
-  card.className = "order-card";
-  card.innerHTML = renderOrderHTML(data);
-  return card;
+  const div = document.createElement("div");
+  div.className = "order-card";
+  div.innerHTML = renderOrderHTML(data);
+  return div;
 }
 
-// render HTML
+// =====================
+// RENDER HTML (FIXED)
+// =====================
 function renderOrderHTML(data) {
   const date = parseDate(data.time);
   const timeStr = date ? date.toLocaleString("vi-VN") : "---";
@@ -270,19 +282,17 @@ function renderOrderHTML(data) {
     `;
   }).join("");
 
- return `
-  <div class="order-header">
-    <div>
-      <div class="order-time">🕒 ${timeStr}</div>
-      <div style="font-size:0.85rem;color:#1a73e8;font-weight:bold;">
-        🆔 ${data.orderId || "NO-ID"}
+  return `
+    <div class="order-header">
+      <div>
+        <div class="order-time">🕒 ${timeStr}</div>
+        <div class="oid" style="font-size:0.85rem;color:#1a73e8;font-weight:bold;">
+          🆔 ${data.orderId || "NO-ID"}
+        </div>
       </div>
-    </div>
-    <button class="copy-btn" onclick="copyOrderData(this)">📋 Copy</button>
-  </div>
-`
       <button class="copy-btn" onclick="copyOrderData(this)">📋 Copy</button>
     </div>
+
     <table>
       <thead>
         <tr>
