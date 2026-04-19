@@ -23,9 +23,7 @@
       gap: 20px;
     }
 
-    #today-orders {
-      flex: 2;
-    }
+    #today-orders { flex: 2; }
 
     #history {
       flex: 1;
@@ -137,7 +135,14 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// COPY EXCEL
+// 🧠 parse date chống crash
+function parseDate(time) {
+  if (!time) return null;
+  if (typeof time.toDate === "function") return time.toDate();
+  return new Date(time);
+}
+
+// 📋 copy excel
 window.copyOrderData = function(btn) {
   const card = btn.closest('.order-card');
   const rows = card.querySelectorAll('tbody tr');
@@ -145,8 +150,8 @@ window.copyOrderData = function(btn) {
   let text = "Ma hang\tSo luong\n";
 
   rows.forEach((row, i) => {
-    const code = row.querySelector('.col-code').textContent.trim();
-    const qty = row.querySelector('.col-qty').textContent.trim();
+    const code = row.querySelector('.col-code')?.textContent.trim() || "";
+    const qty = row.querySelector('.col-qty')?.textContent.trim() || "";
     text += `${code}\t${qty}${i < rows.length - 1 ? '\n' : ''}`;
   });
 
@@ -155,65 +160,69 @@ window.copyOrderData = function(btn) {
   setTimeout(() => btn.innerText = "📋 Copy", 1200);
 };
 
-// TOGGLE HISTORY
+// toggle lịch sử
 window.toggleHistory = function(el) {
   const content = el.nextElementSibling;
   content.style.display = content.style.display === "none" ? "block" : "none";
 };
 
-// TIME RANGE TODAY
+// thời gian hôm nay
 const startOfToday = new Date();
 startOfToday.setHours(0,0,0,0);
 
 const endOfToday = new Date();
 endOfToday.setHours(23,59,59,999);
 
-// QUERY
+// query
 const q = query(collection(db, "orders"), orderBy("time", "desc"));
 
 onSnapshot(q, (snapshot) => {
+  try {
 
-  const todayContainer = document.getElementById("today-orders");
-  const historyContainer = document.getElementById("history");
+    const todayContainer = document.getElementById("today-orders");
+    const historyContainer = document.getElementById("history");
 
-  todayContainer.innerHTML = "";
-  historyContainer.innerHTML = "";
+    todayContainer.innerHTML = "";
+    historyContainer.innerHTML = "";
 
-  const oldOrders = {};
+    const oldOrders = {};
 
-  snapshot.forEach(doc => {
-    const data = doc.data();
-    if (!data.time) return;
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      const date = parseDate(data.time);
+      if (!date) return;
 
-    const date = data.time.toDate();
-    const dateStr = date.toISOString().split("T")[0];
+      const dateStr = date.toISOString().split("T")[0];
+      const isToday = date >= startOfToday && date <= endOfToday;
 
-    const isToday = date >= startOfToday && date <= endOfToday;
+      if (isToday) {
+        todayContainer.appendChild(renderOrder(data));
+      } else {
+        if (!oldOrders[dateStr]) oldOrders[dateStr] = [];
+        oldOrders[dateStr].push(data);
+      }
+    });
 
-    if (isToday) {
-      todayContainer.appendChild(renderOrder(data));
-    } else {
-      if (!oldOrders[dateStr]) oldOrders[dateStr] = [];
-      oldOrders[dateStr].push(data);
-    }
-  });
+    // render history
+    Object.keys(oldOrders).forEach(date => {
+      const section = document.createElement("div");
 
-  // render history
-  Object.keys(oldOrders).forEach(date => {
-    const section = document.createElement("div");
+      section.innerHTML = `
+        <div class="history-date" onclick="toggleHistory(this)">
+          📅 ${date} (${oldOrders[date].length})
+        </div>
+        <div style="display:none">
+          ${oldOrders[date].map(o => renderOrderHTML(o)).join("")}
+        </div>
+      `;
 
-    section.innerHTML = `
-      <div class="history-date" onclick="toggleHistory(this)">
-        📅 ${date} (${oldOrders[date].length})
-      </div>
-      <div style="display:none">
-        ${oldOrders[date].map(o => renderOrderHTML(o)).join("")}
-      </div>
-    `;
+      historyContainer.appendChild(section);
+    });
 
-    historyContainer.appendChild(section);
-  });
-
+  } catch (err) {
+    console.error("🔥 Lỗi:", err);
+    document.body.innerHTML = "<h2>🔥 Lỗi render - mở F12 xem chi tiết</h2>";
+  }
 });
 
 // render DOM
@@ -226,12 +235,13 @@ function renderOrder(data) {
 
 // render HTML
 function renderOrderHTML(data) {
-  const timeStr = data.time?.toDate().toLocaleString("vi-VN") || "---";
+  const date = parseDate(data.time);
+  const timeStr = date ? date.toLocaleString("vi-VN") : "---";
 
   const rows = (data.items || []).map(item => `
     <tr>
-      <td class="col-code">${item.code}</td>
-      <td class="col-qty">${item.qty}</td>
+      <td class="col-code">${item.code || ""}</td>
+      <td class="col-qty">${item.qty || ""}</td>
     </tr>
   `).join("");
 
