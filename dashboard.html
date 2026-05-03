@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard BARCODE</title>
+  <title>Dashboard BARCODE - Automation</title>
 
   <style>
     body {
-      font-family: 'Segoe UI', sans-serif;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       background: #f0f2f5;
       margin: 0;
       padding: 20px;
@@ -16,6 +16,7 @@
     h2 {
       text-align: center;
       color: #1a73e8;
+      margin-bottom: 30px;
     }
 
     .layout {
@@ -30,40 +31,59 @@
       max-height: 90vh;
       overflow-y: auto;
       background: #fff;
-      padding: 10px;
-      border-radius: 10px;
+      padding: 15px;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
     }
 
     .order-card {
       background: #fff;
       border-radius: 10px;
-      padding: 12px;
-      margin-bottom: 15px;
-      box-shadow: 0 3px 6px rgba(0,0,0,0.1);
-      border-left: 5px solid #1a73e8;
+      padding: 15px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      border-left: 6px solid #1a73e8;
     }
 
     .order-header {
       display: flex;
       justify-content: space-between;
-      margin-bottom: 8px;
+      margin-bottom: 12px;
       align-items: center;
     }
 
-    .order-time {
+    .order-info .order-time {
       font-size: 0.85rem;
       color: #666;
       font-weight: bold;
     }
 
-    .copy-btn {
-      background: #f1f3f4;
-      border: 1px solid #1a73e8;
+    .order-info .oid {
+      font-size: 0.9rem;
       color: #1a73e8;
-      padding: 5px 10px;
+      font-weight: bold;
+      margin-top: 2px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn {
+      border: 1px solid;
+      padding: 6px 12px;
       cursor: pointer;
       border-radius: 6px;
-      font-size: 0.8rem;
+      font-size: 0.85rem;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+
+    .copy-btn {
+      background: #f8f9fa;
+      border-color: #1a73e8;
+      color: #1a73e8;
     }
 
     .copy-btn:hover {
@@ -71,58 +91,81 @@
       color: #fff;
     }
 
+    .print-btn {
+      background: #fff;
+      border-color: #27ae60;
+      color: #27ae60;
+    }
+
+    .print-btn:hover {
+      background: #27ae60;
+      color: #fff;
+    }
+
+    .print-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
     table {
       width: 100%;
       border-collapse: collapse;
-      table-layout: fixed;
+      margin-top: 10px;
     }
 
     th {
       text-align: left;
-      background: #f8f9fa;
-      padding: 6px;
+      background: #f1f3f4;
+      padding: 8px;
       font-size: 0.85rem;
+      color: #5f6368;
     }
 
     td {
-      padding: 6px;
+      padding: 10px 8px;
       border-bottom: 1px solid #eee;
+      font-size: 0.9rem;
     }
 
-    .col-code { width: 20%; font-weight: bold; color: #d63031; }
-    .col-name { width: 50%; }
-    .col-qty { width: 30%; text-align: center; }
+    .col-code { width: 25%; font-weight: 600; color: #d63031; }
+    .col-name { width: 50%; color: #2d3436; }
+    .col-qty { width: 25%; text-align: center; }
 
     .qty-box {
       background: #e8f0fe;
-      padding: 4px 10px;
+      padding: 4px 12px;
       border-radius: 6px;
       display: inline-block;
-      min-width: 40px;
       font-weight: bold;
+      color: #1a73e8;
     }
 
     .history-date {
-      padding: 8px;
-      background: #f1f3f4;
-      margin-bottom: 5px;
-      border-radius: 6px;
+      padding: 10px;
+      background: #f8f9fa;
+      margin-bottom: 8px;
+      border-radius: 8px;
       cursor: pointer;
       font-weight: bold;
+      display: flex;
+      justify-content: space-between;
     }
 
     .history-date:hover {
-      background: #e0e0e0;
+      background: #eef2f7;
     }
   </style>
 </head>
 
 <body>
 
-<h2>📦 QUẢN LÝ IN BARCODE</h2>
+<h2>📦 HỆ THỐNG QUẢN LÝ IN BARCODE</h2>
 
 <div class="layout">
+  <!-- Khu vực hiển thị đơn hàng hôm nay -->
   <div id="today-orders"></div>
+  
+  <!-- Khu vực hiển thị lịch sử -->
   <div id="history"></div>
 </div>
 
@@ -131,27 +174,10 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/fireba
 import { getFirestore, collection, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 
 // =====================
-// LOAD PRODUCT MAP
-// =====================
-let productMap = {};
-
-async function loadProducts() {
-  try {
-    const res = await fetch("/data.json");
-    productMap = await res.json();
-  } catch (e) {
-    console.warn("Không load được data.json");
-    productMap = {};
-  }
-}
-
-await loadProducts();
-
-// =====================
-// FIREBASE
+// 1. CẤU HÌNH FIREBASE
 // =====================
 const firebaseConfig = {
-  apiKey: "AIzaSy...",
+  apiKey: "AIzaSy...", // Giữ nguyên apiKey của bạn
   authDomain: "in-barcode.firebaseapp.com",
   projectId: "in-barcode",
 };
@@ -160,25 +186,67 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 // =====================
-// DATE PARSER
+// 2. LOAD DATA SẢN PHẨM (DIỄN GIẢI)
 // =====================
-function parseDate(time) {
-  if (!time) return null;
-  if (typeof time.toDate === "function") return time.toDate();
-  return new Date(time);
+let productMap = {};
+async function loadProducts() {
+  try {
+    const res = await fetch("/data.json");
+    productMap = await res.json();
+  } catch (e) {
+    console.warn("Không tìm thấy data.json");
+  }
 }
+await loadProducts();
 
 // =====================
-// COPY EXCEL
+// 3. LOGIC IN TRỰC TIẾP (GỬI ĐẾN PYTHON)
+// =====================
+window.sendToPrintServer = async function(btn, orderDataStr) {
+  const data = JSON.parse(decodeURIComponent(orderDataStr));
+  
+  // Hiệu ứng nút bấm
+  const originalHTML = btn.innerHTML;
+  btn.innerText = "⏳ Đang gửi...";
+  btn.disabled = true;
+
+  try {
+    // Gửi yêu cầu đến server local chạy trên máy bạn
+    const response = await fetch('http://localhost:5000/print', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items: data.items })
+    });
+
+    const result = await response.json();
+    if (result.status === "success") {
+      btn.innerText = "✅ Xong";
+      btn.style.borderColor = "#27ae60";
+    } else {
+      alert("Lỗi từ server: " + result.message);
+      btn.innerText = "❌ Lỗi";
+    }
+  } catch (err) {
+    alert("Không tìm thấy Server Python! Hãy đảm bảo bạn đã chạy file server.py.");
+    btn.innerText = "📋 Thử lại";
+  } finally {
+    btn.disabled = false;
+    setTimeout(() => {
+        btn.innerHTML = originalHTML;
+        btn.style.borderColor = "#27ae60";
+    }, 2500);
+  }
+};
+
+// =====================
+// 4. LOGIC COPY EXCEL
 // =====================
 window.copyOrderData = function(btn) {
   const card = btn.closest('.order-card');
   const rows = card.querySelectorAll('tbody tr');
+  const orderId = card.querySelector(".oid")?.innerText.replace('🆔 ', '') || "";
 
-  const orderId = card.querySelector(".oid")?.innerText || "";
-
-  let text = "OrderID\tBarcode\tSo luong\n";
-
+  let text = ""; // Để trống header nếu muốn paste nhanh vào cột
   rows.forEach(row => {
     const code = row.querySelector('.col-code')?.textContent.trim() || "";
     const qty = row.querySelector('.qty-box')?.textContent.trim() || "";
@@ -186,21 +254,12 @@ window.copyOrderData = function(btn) {
   });
 
   navigator.clipboard.writeText(text);
-
   btn.innerText = "✅ Copied";
   setTimeout(() => btn.innerText = "📋 Copy", 1200);
 };
 
 // =====================
-// TOGGLE HISTORY
-// =====================
-window.toggleHistory = function(el) {
-  const content = el.nextElementSibling;
-  content.style.display = content.style.display === "none" ? "block" : "none";
-};
-
-// =====================
-// FIREBASE QUERY
+// 5. HIỂN THỊ DỮ LIỆU TỪ FIREBASE
 // =====================
 const q = query(collection(db, "orders"), orderBy("time", "desc"));
 
@@ -211,101 +270,90 @@ onSnapshot(q, (snapshot) => {
   todayContainer.innerHTML = "";
   historyContainer.innerHTML = "";
 
-  const start = new Date();
-  start.setHours(0,0,0,0);
+  const startOfDay = new Date();
+  startOfDay.setHours(0,0,0,0);
+  
+  const endOfDay = new Date();
+  endOfDay.setHours(23,59,59,999);
 
-  const end = new Date();
-  end.setHours(23,59,59,999);
-
-  const old = {};
+  const historyGroups = {};
 
   snapshot.forEach(doc => {
     const data = doc.data();
-    const date = parseDate(data.time);
-    if (!date) return;
-
-    const key = date.toISOString().split("T")[0];
-
-    if (date >= start && date <= end) {
-      todayContainer.appendChild(renderOrder(data));
+    const time = data.time?.toDate ? data.time.toDate() : new Date(data.time);
+    
+    if (time >= startOfDay && time <= endOfDay) {
+      todayContainer.appendChild(createOrderCard(data));
     } else {
-      if (!old[key]) old[key] = [];
-      old[key].push(data);
+      const dateKey = time.toLocaleDateString("vi-VN");
+      if (!historyGroups[dateKey]) historyGroups[dateKey] = [];
+      historyGroups[dateKey].push(data);
     }
   });
 
-  Object.keys(old).forEach(date => {
-    const div = document.createElement("div");
-
-    div.innerHTML = `
-      <div class="history-date" onclick="toggleHistory(this)">
-        📅 ${date} (${old[date].length})
+  // Render Lịch sử
+  Object.keys(historyGroups).forEach(date => {
+    const groupDiv = document.createElement("div");
+    groupDiv.innerHTML = `
+      <div class="history-date" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'">
+        <span>📅 ${date}</span>
+        <span>${historyGroups[date].length} đơn</span>
       </div>
       <div style="display:none">
-        ${old[date].map(renderOrderHTML).join("")}
+        ${historyGroups[date].map(d => renderOrderHTML(d)).join("")}
       </div>
     `;
-
-    historyContainer.appendChild(div);
+    historyContainer.appendChild(groupDiv);
   });
 });
 
-// =====================
-// RENDER WRAPPER
-// =====================
-function renderOrder(data) {
+function createOrderCard(data) {
   const div = document.createElement("div");
   div.className = "order-card";
   div.innerHTML = renderOrderHTML(data);
   return div;
 }
 
-// =====================
-// RENDER HTML (FIXED)
-// =====================
 function renderOrderHTML(data) {
-  const date = parseDate(data.time);
-  const timeStr = date ? date.toLocaleString("vi-VN") : "---";
+  const time = data.time?.toDate ? data.time.toDate() : new Date(data.time);
+  const timeStr = time.toLocaleString("vi-VN");
+  const orderDataStr = encodeURIComponent(JSON.stringify(data));
 
-  const rows = (data.items || []).map(item => {
+  const itemsHTML = (data.items || []).map(item => {
     const code = String(item.code || "");
-    const name = productMap[code] || "";
-
+    const name = productMap[code] || "Sản phẩm mới";
     return `
       <tr>
         <td class="col-code">${code}</td>
         <td class="col-name">${name}</td>
-        <td class="col-qty">
-          <div class="qty-box">${item.qty || ""}</div>
-        </td>
+        <td class="col-qty"><div class="qty-box">${item.qty || 1}</div></td>
       </tr>
     `;
   }).join("");
 
   return `
     <div class="order-header">
-      <div>
+      <div class="order-info">
         <div class="order-time">🕒 ${timeStr}</div>
-        <div class="oid" style="font-size:0.85rem;color:#1a73e8;font-weight:bold;">
-          🆔 ${data.orderId || "NO-ID"}
-        </div>
+        <div class="oid">🆔 ${data.orderId || "N/A"}</div>
       </div>
-      <button class="copy-btn" onclick="copyOrderData(this)">📋 Copy</button>
+      <div class="actions">
+        <button class="btn copy-btn" onclick="copyOrderData(this)">📋 Copy</button>
+        <button class="btn print-btn" onclick="sendToPrintServer(this, '${orderDataStr}')">🖨️ In nhanh</button>
+      </div>
     </div>
-
     <table>
       <thead>
         <tr>
           <th>Barcode</th>
-          <th>Diễn giải</th>
+          <th>Tên sản phẩm</th>
           <th style="text-align:center">Số lượng</th>
         </tr>
       </thead>
-      <tbody>${rows}</tbody>
+      <tbody>${itemsHTML}</tbody>
     </table>
   `;
 }
-
 </script>
 
 </body>
