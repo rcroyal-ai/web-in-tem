@@ -171,6 +171,17 @@
 </head>
 
 <body>
+<div id="loginBox" style="position:fixed;top:0;left:0;width:100%;height:100%;background:#f0f2f5;display:flex;justify-content:center;align-items:center;z-index:9999;">
+<div style="background:#fff;padding:30px;border-radius:12px;width:320px;box-shadow:0 0 20px rgba(0,0,0,.15)">
+<h2>🔒 Login</h2>
+<input id="email" placeholder="Email" style="width:100%;padding:10px;margin-bottom:10px">
+<input id="password" type="password" placeholder="Password" style="width:100%;padding:10px;margin-bottom:10px">
+<button onclick="login()" style="width:100%;padding:10px">Login</button>
+<div id="err" style="color:red;margin-top:10px"></div>
+</div>
+</div>
+<div id="mainContent" style="display:none;">
+
 
 <h2>📦 HỆ THỐNG QUẢN LÝ IN BARCODE</h2>
 
@@ -185,6 +196,7 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
 import { getFirestore, collection, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
 
 // =====================
 // 1. CẤU HÌNH FIREBASE
@@ -197,6 +209,26 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
+
+window.login = async function(){
+ try{
+   await signInWithEmailAndPassword(
+      auth,
+      document.getElementById('email').value,
+      document.getElementById('password').value
+   );
+ }catch(e){
+   document.getElementById('err').innerText='Sai tài khoản hoặc mật khẩu';
+ }
+}
+
+onAuthStateChanged(auth,(user)=>{
+ if(user){
+   document.getElementById('loginBox').style.display='none';
+   document.getElementById('mainContent').style.display='block';
+ }
+});
 
 // =====================
 // 2. LOAD DATA SẢN PHẨM (DIỄN GIẢI)
@@ -389,5 +421,6 @@ function renderOrderHTML(data) {
 }
 </script>
 
+</div>
 </body>
 </html>
