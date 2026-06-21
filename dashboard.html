@@ -153,6 +153,17 @@
       color: #1a73e8;
     }
 
+    .delete-btn{
+    background:#fff;
+    border-color:#e74c3c;
+    color:#e74c3c;
+}
+
+    .delete-btn:hover{
+        background:#e74c3c;
+        color:#fff;
+    }
+    
     .history-date {
       padding: 10px;
       background: #f8f9fa;
@@ -211,6 +222,30 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
+
+window.deleteOrder = async function(docId){
+
+    if(!confirm("Xóa đơn này ?"))
+        return;
+
+    try{
+
+        await deleteDoc(
+            doc(db, "orders", docId)
+        );
+
+        alert("Đã xóa");
+
+    }catch(err){
+
+        console.error(err);
+
+        alert("Xóa thất bại");
+
+    }
+
+};
+  
 window.login = async function(){
  try{
    await signInWithEmailAndPassword(
