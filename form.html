@@ -128,6 +128,15 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
+let productMaster = {};
+
+fetch("data.json")
+  .then(r => r.json())
+  .then(data => {
+    productMaster = data;
+    console.log("Loaded products:", Object.keys(data).length);
+  });
+
     let currentInput = null;
     let scanInProgress = false;
 
@@ -135,17 +144,16 @@
     // 🆔 TẠO MÃ ĐƠN dd-mm-yyyy-xx
     // =========================
     function getOrderId() {
-    
       const now = new Date();
-    
+
       const dd = String(now.getDate()).padStart(2, '0');
       const mm = String(now.getMonth() + 1).padStart(2, '0');
       const yyyy = now.getFullYear();
-    
+
       const hh = String(now.getHours()).padStart(2, '0');
       const mi = String(now.getMinutes()).padStart(2, '0');
       const ss = String(now.getSeconds()).padStart(2, '0');
-    
+
       return `${dd}-${mm}-${yyyy}-${hh}${mi}${ss}`;
     }
 
@@ -153,13 +161,31 @@
       const div = document.createElement("div");
       div.className = "row";
       div.innerHTML = `
-        <input placeholder="Mã hàng" class="code-input">
+        <div style="flex:1">
+          <input placeholder="Mã hàng" class="code-input">
+          <div class="item-name" style="font-size:14px;color:#666;margin-top:4px;"></div>
+        </div>
         <input class="qty-input" placeholder="SL" type="number">
         <button class="scan-btn">📷</button>
       `;
 
       const btn = div.querySelector(".scan-btn");
       const input = div.querySelector(".code-input");
+      const itemName = div.querySelector(".item-name");
+
+      input.addEventListener("input", () => {
+        const code = input.value.trim();
+
+        if(productMaster[code]){
+          itemName.textContent = productMaster[code];
+          itemName.style.color = "green";
+        }else if(code){
+          itemName.textContent = "Không tìm thấy mã hàng";
+          itemName.style.color = "red";
+        }else{
+          itemName.textContent = "";
+        }
+      });
 
       btn.onclick = () => startScan(input);
       document.getElementById("list").appendChild(div);
@@ -200,6 +226,7 @@
         let raw = data.codeResult.code;
         let match = raw.match(/893\d{10}/);
         currentInput.value = match ? match[0] : raw;
+        currentInput.dispatchEvent(new Event("input"));
 
         stopScan();
 
