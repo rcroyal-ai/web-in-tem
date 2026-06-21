@@ -195,7 +195,7 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
-import { getFirestore, collection, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+import { getFirestore, collection, onSnapshot, query, orderBy, deleteDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
 
 // =====================
@@ -343,6 +343,7 @@ onSnapshot(q, (snapshot) => {
 
   snapshot.forEach(doc => {
     const data = doc.data();
+    data._docId = docSnap.id;
     const time = data.time?.toDate ? data.time.toDate() : new Date(data.time);
     
     if (time >= startOfDay && time <= endOfDay) {
@@ -405,6 +406,7 @@ function renderOrderHTML(data) {
         <button class="btn copy-btn" onclick="copyOrderData(this)">📋 Copy</button>
         <span class="print-status ${printed ? 'done' : ''}">✅ Đã In</span>
         <button class="btn print-btn" onclick="sendToPrintServer(this, '${orderDataStr}')">🖨️ In nhanh</button>
+        <button class="btn delete-btn" onclick="deleteOrder('${data._docId}')">🗑️ Xóa</button>
       </div>
     </div>
     <table>
