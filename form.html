@@ -135,23 +135,18 @@
     // 🆔 TẠO MÃ ĐƠN dd-mm-yyyy-xx
     // =========================
     function getOrderId() {
-      const today = new Date();
-      const dd = String(today.getDate()).padStart(2, '0');
-      const mm = String(today.getMonth() + 1).padStart(2, '0');
-      const yyyy = today.getFullYear();
-      const dateKey = `${dd}-${mm}-${yyyy}`;
-
-      let stored = JSON.parse(localStorage.getItem("order_counter") || "{}");
-
-      if (!stored.date || stored.date !== dateKey) {
-        stored = { date: dateKey, count: 1 };
-      } else {
-        stored.count += 1;
-      }
-
-      localStorage.setItem("order_counter", JSON.stringify(stored));
-
-      return `${dateKey}-${stored.count}`;
+    
+      const now = new Date();
+    
+      const dd = String(now.getDate()).padStart(2, '0');
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const yyyy = now.getFullYear();
+    
+      const hh = String(now.getHours()).padStart(2, '0');
+      const mi = String(now.getMinutes()).padStart(2, '0');
+      const ss = String(now.getSeconds()).padStart(2, '0');
+    
+      return `${dd}-${mm}-${yyyy}-${hh}${mi}${ss}`;
     }
 
     function addRow() {
