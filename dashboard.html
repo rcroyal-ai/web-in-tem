@@ -178,6 +178,85 @@
     .history-date:hover {
       background: #eef2f7;
     }
+
+    /* =========================
+       FILTER MÃ NHẬN DIỆN
+       ========================= */
+    #filterBar {
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      background: #f0f2f5;
+      padding: 10px 0;
+      margin-bottom: 10px;
+    }
+
+    .filter-box {
+      background: #fff;
+      border-radius: 10px;
+      padding: 12px 15px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .filter-box label {
+      font-weight: 700;
+      color: #333;
+      white-space: nowrap;
+    }
+
+    #orderFilter {
+      flex: 1;
+      min-width: 0;
+      padding: 10px 12px;
+      border: 1px solid #ccc;
+      border-radius: 7px;
+      font-size: 16px;
+      outline: none;
+    }
+
+    #orderFilter:focus {
+      border-color: #1a73e8;
+      box-shadow: 0 0 0 2px rgba(26,115,232,0.12);
+    }
+
+    #clearFilter {
+      padding: 9px 14px;
+      border: 1px solid #999;
+      background: #fff;
+      border-radius: 7px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    #clearFilter:hover {
+      background: #f1f3f4;
+    }
+
+    #filterResult {
+      margin-top: 7px;
+      padding-left: 3px;
+      font-size: 13px;
+      color: #666;
+    }
+
+    @media (max-width: 600px) {
+      .filter-box {
+        flex-wrap: wrap;
+      }
+
+      .filter-box label {
+        width: 100%;
+      }
+
+      #orderFilter {
+        width: 100%;
+        flex: 1 1 100%;
+      }
+    }
+
   </style>
 </head>
 
@@ -195,6 +274,21 @@
 
 
 <h2>📦 HỆ THỐNG QUẢN LÝ IN BARCODE</h2>
+
+<div id="filterBar">
+  <div class="filter-box">
+    <label for="orderFilter">🔎 Mã nhận diện:</label>
+    <input id="orderFilter" type="text" inputmode="numeric"
+           autocomplete="off"
+           maxlength="6"
+           pattern="[0-9]{6}"
+           placeholder="Nhập đủ 6 số, ví dụ: 064734">
+    <button id="clearFilter" type="button">✕ Xóa</button>
+  </div>
+  <div id="filterResult"></div>
+</div>
+
+
 
 <div class="layout">
   <!-- Khu vực hiển thị đơn hàng hôm nay -->
@@ -359,54 +453,126 @@ function isPrinted(orderId) {
 // =====================
 // 5. HIỂN THỊ DỮ LIỆU TỪ FIREBASE
 // =====================
-const q = query(collection(db, "orders"), orderBy("time", "desc"));
+const orderFilter = document.getElementById("orderFilter");
+  const clearFilter = document.getElementById("clearFilter");
+  const filterResult = document.getElementById("filterResult");
 
-onSnapshot(q, (snapshot) => {
-  const todayContainer = document.getElementById("today-orders");
-  const historyContainer = document.getElementById("history");
+  let currentFilter = "";
+  let latestSnapshot = null;
 
-  todayContainer.innerHTML = "";
-  historyContainer.innerHTML = "";
+  orderFilter.addEventListener("input", () => {
+    // Chỉ cho phép số và tối đa 6 ký tự.
+    orderFilter.value = orderFilter.value.replace(/\D/g, "").slice(0, 6);
+    currentFilter = orderFilter.value;
+    renderOrders();
+  });
 
-  const startOfDay = new Date();
-  startOfDay.setHours(0,0,0,0);
-  
-  const endOfDay = new Date();
-  endOfDay.setHours(23,59,59,999);
+  clearFilter.addEventListener("click", () => {
+    orderFilter.value = "";
+    currentFilter = "";
+    orderFilter.focus();
+    renderOrders();
+  });
 
-  const historyGroups = {};
+  function matchesOrderFilter(data) {
+    // Chỉ filter khi đã nhập đủ 6 chữ số.
+    if (!/^\d{6}$/.test(currentFilter)) return true;
 
-  snapshot.forEach(docSnap => {
-    const data = docSnap.data();
-    data._docId = docSnap.id;
-    const time = data.time?.toDate ? data.time.toDate() : new Date(data.time);
-    
-    if (time >= startOfDay && time <= endOfDay) {
-      todayContainer.appendChild(createOrderCard(data));
+    const orderId = String(data.orderId || "").trim();
+
+    return orderId === currentFilter;
+  }
+
+  function renderFilterResult(total, shown) {
+    if (!currentFilter) {
+      filterResult.textContent = `Đang hiển thị tất cả ${total} đơn`;
+    } else if (!/^\d{6}$/.test(currentFilter)) {
+      filterResult.textContent =
+        "Nhập đủ 6 số để lọc mã nhận diện";
+    } else if (shown === 0) {
+      filterResult.textContent =
+        `Không tìm thấy mã nhận diện: ${currentFilter}`;
     } else {
-      const dateKey = time.toLocaleDateString("vi-VN");
-      if (!historyGroups[dateKey]) historyGroups[dateKey] = [];
-      historyGroups[dateKey].push(data);
+      filterResult.textContent =
+        `Đã lọc mã nhận diện: ${currentFilter}`;
     }
+  }
+
+  const q = query(collection(db, "orders"), orderBy("time", "desc"));
+
+  function renderOrders() {
+    if (!latestSnapshot) return;
+
+    const todayContainer = document.getElementById("today-orders");
+    const historyContainer = document.getElementById("history");
+
+    todayContainer.innerHTML = "";
+    historyContainer.innerHTML = "";
+
+    const startOfDay = new Date();
+    startOfDay.setHours(0,0,0,0);
+
+    const endOfDay = new Date();
+    endOfDay.setHours(23,59,59,999);
+
+    const historyGroups = {};
+    let shownOrders = 0;
+
+    latestSnapshot.forEach(docSnap => {
+      const data = docSnap.data();
+      data._docId = docSnap.id;
+
+      if (!matchesOrderFilter(data)) return;
+
+      shownOrders++;
+
+      const time = data.time?.toDate
+        ? data.time.toDate()
+        : new Date(data.time);
+
+      if (time >= startOfDay && time <= endOfDay) {
+        todayContainer.appendChild(createOrderCard(data));
+      } else {
+        const dateKey = time.toLocaleDateString("vi-VN");
+
+        if (!historyGroups[dateKey]) {
+          historyGroups[dateKey] = [];
+        }
+
+        historyGroups[dateKey].push(data);
+      }
+    });
+
+    Object.keys(historyGroups).forEach(date => {
+      const groupDiv = document.createElement("div");
+
+      groupDiv.innerHTML = `
+        <div class="history-date"
+             onclick="this.nextElementSibling.style.display =
+               this.nextElementSibling.style.display === 'none'
+               ? 'block'
+               : 'none'">
+          <span>📅 ${date}</span>
+          <span>${historyGroups[date].length} đơn</span>
+        </div>
+
+        <div style="display:none">
+          ${historyGroups[date].map(d => renderOrderHTML(d)).join("")}
+        </div>
+      `;
+
+      historyContainer.appendChild(groupDiv);
+    });
+
+    renderFilterResult(latestSnapshot.size, shownOrders);
+  }
+
+  onSnapshot(q, (snapshot) => {
+    latestSnapshot = snapshot;
+    renderOrders();
   });
 
-  // Render Lịch sử
-  Object.keys(historyGroups).forEach(date => {
-    const groupDiv = document.createElement("div");
-    groupDiv.innerHTML = `
-      <div class="history-date" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'">
-        <span>📅 ${date}</span>
-        <span>${historyGroups[date].length} đơn</span>
-      </div>
-      <div style="display:none">
-        ${historyGroups[date].map(d => renderOrderHTML(d)).join("")}
-      </div>
-    `;
-    historyContainer.appendChild(groupDiv);
-  });
-});
-
-function createOrderCard(data) {
+  function createOrderCard(data) {
   const div = document.createElement("div");
   div.className = "order-card";
   div.innerHTML = renderOrderHTML(data);
